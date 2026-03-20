@@ -1,56 +1,630 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Excel Report Tool</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colorway Stage Transition Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #eef2f7;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: #123d8a;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: #6b7280;
+    }
+
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+
+    .top-row {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input[type="file"],
+    select,
+    button {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+    }
+
+    button {
+      background: #123d8a;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .card-title {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-size: 30px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+    }
+
+    .transition-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .mini-card {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .mini-card h3 {
+      margin: 0 0 12px;
+      color: #123d8a;
+      font-size: 16px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px dashed #e5e7eb;
+      font-size: 14px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th {
+      background: #123d8a;
+      color: white;
+      text-align: left;
+      padding: 12px;
+      font-size: 14px;
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: white;
+    }
+
+    .active { background: #16a34a; }
+    .drop { background: #dc2626; }
+    .new { background: #2563eb; }
+
+    .hint {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 420px !important;
+    }
+
+    @media (max-width: 900px) {
+      .cards,
+      .transition-grid,
+      .sub-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>Colorway Stage Transition Dashboard</h1>
+    <p class="subtitle">Upload Excel file to analyze LR2 → FLC → SMS → CFM transitions</p>
 
-<h1>Excel Report Tool</h1>
+    <div class="panel">
+      <div class="top-row">
+        <div class="field">
+          <label>Choose Excel file</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        </div>
 
-<input type="file" id="file" />
-<button onclick="handleFile()">Generate</button>
+        <div class="field">
+          <label>Sheet name</label>
+          <select id="sheetName">
+            <option value="Sheet1">Sheet1</option>
+          </select>
+        </div>
 
-<div id="output"></div>
+        <button id="generateBtn">Generate Dashboard</button>
+        <button id="downloadBtn">Download HTML</button>
+      </div>
+      <div class="hint">
+        Expected columns in Sheet1: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
+      </div>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <div class="panel">
+      <h2>Stage Summary</h2>
+      <div id="summaryCards" class="cards"></div>
+    </div>
 
-<script>
-function handleFile() {
-  const file = document.getElementById('file').files[0];
-  if (!file) {
-    alert("Choose file first");
-    return;
-  }
+    <div class="panel">
+      <h2>Transition Overview</h2>
+      <div class="sub-grid">
+        <div>
+          <canvas id="transitionChart"></canvas>
+        </div>
+        <div id="transitionStats" class="transition-grid"></div>
+      </div>
+    </div>
 
-  const reader = new FileReader();
+    <div class="panel">
+      <h2>Detail List</h2>
+      <div class="filters">
+        <div class="field">
+          <label>Transition</label>
+          <select id="transitionFilter">
+            <option value="LR2-FLC">LR2 → FLC</option>
+            <option value="FLC-SMS">FLC → SMS</option>
+            <option value="SMS-CFM">SMS → CFM</option>
+          </select>
+        </div>
 
-  reader.onload = function(e) {
-    const data = new Uint8Array(e.target.result);
-    const workbook = XLSX.read(data, { type: 'array' });
+        <div class="field">
+          <label>Type</label>
+          <select id="typeFilter">
+            <option value="Active">Active</option>
+            <option value="Drop">Drop</option>
+            <option value="New">New</option>
+          </select>
+        </div>
 
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const json = XLSX.utils.sheet_to_json(sheet);
+        <div class="field">
+          <label>Search code/model</label>
+          <input type="text" id="searchFilter" placeholder="Type to search..." />
+        </div>
+      </div>
 
-    let html = "<table border='1' cellpadding='5'>";
-    html += "<tr><th>Project</th><th>Owner</th><th>Status</th></tr>";
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:70px;">No.</th>
+              <th style="width:110px;">Type</th>
+              <th>Development code</th>
+              <th>Gender_Model</th>
+              <th style="width:90px;">Factory</th>
+              <th style="width:140px;">Material Indicator</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-    json.forEach(row => {
-      html += `<tr>
-        <td>${row.Project || ""}</td>
-        <td>${row.Owner || ""}</td>
-        <td>${row.Status || ""}</td>
-      </tr>`;
+  <script>
+    let transitionChart = null;
+    let currentDetailMap = {};
+    let exportedHtml = "";
+
+    const STAGES = ["LR2", "FLC", "SMS", "CFM"];
+    const TRANSITIONS = [
+      ["LR2", "FLC"],
+      ["FLC", "SMS"],
+      ["SMS", "CFM"]
+    ];
+
+    function normalizeValue(v) {
+      return v !== undefined && v !== null && String(v).trim() !== "" && !Number.isNaN(v);
+    }
+
+    function hasStage(row, stage) {
+      return normalizeValue(row[stage]);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function buildStageMap(rows, stage) {
+      const map = new Map();
+      rows.forEach(row => {
+        const code = String(row["Development code"] ?? "").trim();
+        if (!code) return;
+        if (hasStage(row, stage)) {
+          map.set(code, row);
+        }
+      });
+      return map;
+    }
+
+    function analyzeTransition(rows, fromStage, toStage) {
+      const fromMap = buildStageMap(rows, fromStage);
+      const toMap = buildStageMap(rows, toStage);
+
+      const fromCodes = new Set(fromMap.keys());
+      const toCodes = new Set(toMap.keys());
+
+      const active = [];
+      const drop = [];
+      const newlyAdded = [];
+
+      fromCodes.forEach(code => {
+        if (toCodes.has(code)) {
+          active.push(fromMap.get(code));
+        } else {
+          drop.push(fromMap.get(code));
+        }
+      });
+
+      toCodes.forEach(code => {
+        if (!fromCodes.has(code)) {
+          newlyAdded.push(toMap.get(code));
+        }
+      });
+
+      return {
+        active,
+        drop,
+        new: newlyAdded,
+        counts: {
+          active: active.length,
+          drop: drop.length,
+          new: newlyAdded.length
+        }
+      };
+    }
+
+    function stageSummary(rows) {
+      const result = {};
+      STAGES.forEach(stage => {
+        result[stage] = buildStageMap(rows, stage).size;
+      });
+      return result;
+    }
+
+    function renderSummaryCards(summary) {
+      const el = document.getElementById("summaryCards");
+      el.innerHTML = STAGES.map(stage => `
+        <div class="card">
+          <div class="card-title">${stage}</div>
+          <div class="card-value">${summary[stage]}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderTransitionStats(transitionResults) {
+      const el = document.getElementById("transitionStats");
+      el.innerHTML = Object.entries(transitionResults).map(([key, value]) => `
+        <div class="mini-card">
+          <h3>${key.replace("-", " → ")}</h3>
+          <div class="metric"><span>Active</span><strong>${value.counts.active}</strong></div>
+          <div class="metric"><span>Drop</span><strong>${value.counts.drop}</strong></div>
+          <div class="metric"><span>New</span><strong>${value.counts.new}</strong></div>
+        </div>
+      `).join("");
+    }
+
+    function renderChart(transitionResults) {
+      const labels = Object.keys(transitionResults).map(x => x.replace("-", " → "));
+      const activeData = Object.values(transitionResults).map(x => x.counts.active);
+      const dropData = Object.values(transitionResults).map(x => x.counts.drop);
+      const newData = Object.values(transitionResults).map(x => x.counts.new);
+
+      const ctx = document.getElementById("transitionChart").getContext("2d");
+
+      if (transitionChart) {
+        transitionChart.destroy();
+      }
+
+      transitionChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Active",
+              data: activeData,
+              backgroundColor: "#16a34a"
+            },
+            {
+              label: "Drop",
+              data: dropData,
+              backgroundColor: "#dc2626"
+            },
+            {
+              label: "New",
+              data: newData,
+              backgroundColor: "#2563eb"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "top"
+            },
+            title: {
+              display: true,
+              text: "Stage Transition Counts"
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function buildDetailMap(transitionResults) {
+      return {
+        "LR2-FLC": {
+          Active: transitionResults["LR2-FLC"].active,
+          Drop: transitionResults["LR2-FLC"].drop,
+          New: transitionResults["LR2-FLC"].new
+        },
+        "FLC-SMS": {
+          Active: transitionResults["FLC-SMS"].active,
+          Drop: transitionResults["FLC-SMS"].drop,
+          New: transitionResults["FLC-SMS"].new
+        },
+        "SMS-CFM": {
+          Active: transitionResults["SMS-CFM"].active,
+          Drop: transitionResults["SMS-CFM"].drop,
+          New: transitionResults["SMS-CFM"].new
+        }
+      };
+    }
+
+    function renderDetailTable() {
+      const transition = document.getElementById("transitionFilter").value;
+      const type = document.getElementById("typeFilter").value;
+      const search = document.getElementById("searchFilter").value.trim().toLowerCase();
+
+      let rows = currentDetailMap[transition][type] || [];
+
+      if (search) {
+        rows = rows.filter(row => {
+          const code = String(row["Development code"] || "").toLowerCase();
+          const model = String(row["Gender_Model"] || "").toLowerCase();
+          return code.includes(search) || model.includes(search);
+        });
+      }
+
+      const tbody = document.getElementById("detailTableBody");
+      tbody.innerHTML = rows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><span class="tag ${type.toLowerCase()}">${type}</span></td>
+          <td>${escapeHtml(row["Development code"])}</td>
+          <td>${escapeHtml(row["Gender_Model"])}</td>
+          <td>${escapeHtml(row["Factory"])}</td>
+          <td>${escapeHtml(row["Material Indicator"])}</td>
+        </tr>
+      `).join("");
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
+          </tr>
+        `;
+      }
+    }
+
+    function validateColumns(rows) {
+      if (!rows.length) return false;
+      const required = [
+        "Factory",
+        "Material Indicator",
+        "Development code",
+        "Gender_Model",
+        "LR2",
+        "FLC",
+        "SMS",
+        "CFM"
+      ];
+      return required.every(col => col in rows[0]);
+    }
+
+    function buildExportHtml() {
+      exportedHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Colorway Stage Transition Dashboard</title>
+</head>
+<body>
+${document.documentElement.querySelector(".container").outerHTML}
+</body>
+</html>
+      `.trim();
+    }
+
+    document.getElementById("generateBtn").addEventListener("click", () => {
+      const file = document.getElementById("excelFile").files[0];
+      const sheetName = document.getElementById("sheetName").value;
+
+      if (!file) {
+        alert("Please choose Excel file first.");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        if (!workbook.SheetNames.includes(sheetName)) {
+          alert(`Cannot find sheet: ${sheetName}`);
+          return;
+        }
+
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet);
+
+        if (!rows.length) {
+          alert("Sheet is empty.");
+          return;
+        }
+
+        if (!validateColumns(rows)) {
+          alert("Invalid file format. Please check required columns in Sheet1.");
+          return;
+        }
+
+        const summary = stageSummary(rows);
+
+        const transitionResults = {
+          "LR2-FLC": analyzeTransition(rows, "LR2", "FLC"),
+          "FLC-SMS": analyzeTransition(rows, "FLC", "SMS"),
+          "SMS-CFM": analyzeTransition(rows, "SMS", "CFM")
+        };
+
+        renderSummaryCards(summary);
+        renderTransitionStats(transitionResults);
+        renderChart(transitionResults);
+
+        currentDetailMap = buildDetailMap(transitionResults);
+        renderDetailTable();
+        buildExportHtml();
+      };
+
+      reader.readAsArrayBuffer(file);
     });
 
-    html += "</table>";
+    document.getElementById("transitionFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
 
-    document.getElementById("output").innerHTML = html;
-  };
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      if (!exportedHtml) {
+        alert("Please generate dashboard first.");
+        return;
+      }
 
-  reader.readAsArrayBuffer(file);
-}
-</script>
-
+      const blob = new Blob([exportedHtml], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "colorway_stage_dashboard.html";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  </script>
 </body>
 </html>
