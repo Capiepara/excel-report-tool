@@ -589,10 +589,7 @@ ${document.documentElement.querySelector(".container").outerHTML}
           return;
         }
 
-        if (!validateColumns(rows)) {
-          alert("Invalid file format. Please check required columns in Sheet1.");
-          return;
-        }
+        console.log("Columns found:", Object.keys(rows[0] || {}));
 
         const summary = stageSummary(rows);
 
