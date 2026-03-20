@@ -525,6 +525,7 @@
 
     function validateColumns(rows) {
       if (!rows.length) return false;
+    
       const required = [
         "Factory",
         "Material Indicator",
@@ -535,7 +536,13 @@
         "SMS",
         "CFM"
       ];
-      return required.every(col => col in rows[0]);
+    
+      const allKeys = new Set();
+      rows.forEach(row => {
+        Object.keys(row).forEach(key => allKeys.add(key));
+      });
+    
+      return required.every(col => allKeys.has(col));
     }
 
     function buildExportHtml() {
@@ -575,7 +582,7 @@ ${document.documentElement.querySelector(".container").outerHTML}
         }
 
         const worksheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(worksheet);
+        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
         if (!rows.length) {
           alert("Sheet is empty.");
