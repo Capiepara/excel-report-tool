@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Excel Report Tool</title>
+</head>
+<body>
+
+<h1>Excel Report Tool</h1>
+
+<input type="file" id="file" />
+<button onclick="handleFile()">Generate</button>
+
+<div id="output"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<script>
+function handleFile() {
+  const file = document.getElementById('file').files[0];
+  if (!file) {
+    alert("Choose file first");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, { type: 'array' });
+
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(sheet);
+
+    let html = "<table border='1' cellpadding='5'>";
+    html += "<tr><th>Project</th><th>Owner</th><th>Status</th></tr>";
+
+    json.forEach(row => {
+      html += `<tr>
+        <td>${row.Project || ""}</td>
+        <td>${row.Owner || ""}</td>
+        <td>${row.Status || ""}</td>
+      </tr>`;
+    });
+
+    html += "</table>";
+
+    document.getElementById("output").innerHTML = html;
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>
