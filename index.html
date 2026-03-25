@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Colorway Stage Transition Dashboard</title>
+  <title>Colorway Stage Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -113,9 +113,9 @@
       gap: 20px;
     }
 
-    .transition-grid {
+    .stage-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
       margin-top: 16px;
     }
@@ -215,7 +215,7 @@
 
     @media (max-width: 900px) {
       .cards,
-      .transition-grid,
+      .stage-grid,
       .sub-grid {
         grid-template-columns: 1fr;
       }
@@ -224,8 +224,8 @@
 </head>
 <body>
   <div class="container">
-    <h1>Colorway Stage Transition Dashboard</h1>
-    <p class="subtitle">Upload Excel file to analyze LR2 → FLC → SMS → CFM transitions</p>
+    <h1>Colorway Stage Dashboard</h1>
+    <p class="subtitle">Upload Excel file to analyze stage status by LR2 / FLC / SMS / CFM</p>
 
     <div class="panel">
       <div class="top-row">
@@ -257,13 +257,13 @@
     </div>
 
     <div class="panel">
-      <h2>Transition Overview</h2>
+      <h2>Stage Overview</h2>
       <div class="sub-grid">
         <div>
-          <canvas id="transitionChart"></canvas>
-          <div id="transitionNote" class="note"></div>
+          <canvas id="stageChart"></canvas>
+          <div id="stageNote" class="note"></div>
         </div>
-        <div id="transitionStats" class="transition-grid"></div>
+        <div id="stageStats" class="stage-grid"></div>
       </div>
     </div>
 
@@ -271,8 +271,8 @@
       <h2>Detail List</h2>
       <div class="filters">
         <div class="field">
-          <label>Transition</label>
-          <select id="transitionFilter"></select>
+          <label>Stage</label>
+          <select id="stageFilter"></select>
         </div>
 
         <div class="field">
@@ -295,6 +295,7 @@
           <thead>
             <tr>
               <th style="width:70px;">No.</th>
+              <th style="width:90px;">Stage</th>
               <th style="width:110px;">Type</th>
               <th>Development code</th>
               <th>Gender_Model</th>
@@ -309,7 +310,7 @@
   </div>
 
   <script>
-    let transitionChart = null;
+    let stageChart = null;
     let currentDetailMap = {};
     let exportedHtml = "";
 
@@ -348,54 +349,76 @@
       return map;
     }
 
-    function analyzeTransition(rows, fromStage, toStage) {
-      const fromMap = buildStageMap(rows, fromStage);
-      const toMap = buildStageMap(rows, toStage);
-
-      const fromCodes = new Set(fromMap.keys());
-      const toCodes = new Set(toMap.keys());
-
-      const active = [];
-      const drop = [];
-      const newlyAdded = [];
-
-      fromCodes.forEach(code => {
-        if (toCodes.has(code)) {
-          active.push(toMap.get(code) || fromMap.get(code));
-        } else {
-          drop.push(fromMap.get(code));
-        }
-      });
-
-      toCodes.forEach(code => {
-        if (!fromCodes.has(code)) {
-          newlyAdded.push(toMap.get(code));
-        }
-      });
-
-      return {
-        active,
-        drop,
-        new: newlyAdded,
-        counts: {
-          active: active.length,
-          new: newlyAdded.length,
-          drop: drop.length
-        }
-      };
-    }
-
-    function stageSummary(rows) {
+    function stageSummary(rows, visibleStages) {
       const result = {};
-      STAGES.forEach(stage => {
+      visibleStages.forEach(stage => {
         result[stage] = buildStageMap(rows, stage).size;
       });
       return result;
     }
 
-    function renderSummaryCards(summary) {
+    function analyzeStages(rows, visibleStages) {
+      const stageMaps = {};
+      visibleStages.forEach(stage => {
+        stageMaps[stage] = buildStageMap(rows, stage);
+      });
+
+      const results = {};
+
+      visibleStages.forEach((stage, idx) => {
+        const currentMap = stageMaps[stage];
+        const prevStage = idx > 0 ? visibleStages[idx - 1] : null;
+        const nextStage = idx < visibleStages.length - 1 ? visibleStages[idx + 1] : null;
+
+        const prevMap = prevStage ? stageMaps[prevStage] : new Map();
+        const nextMap = nextStage ? stageMaps[nextStage] : new Map();
+
+        const active = [];
+        const newlyAdded = [];
+        const drop = [];
+
+        currentMap.forEach((row, code) => {
+          if (idx === 0) {
+            active.push(row);
+          } else if (!prevMap.has(code)) {
+            newlyAdded.push(row);
+          } else {
+            active.push(row);
+          }
+        });
+
+        currentMap.forEach((row, code) => {
+          if (nextStage && !nextMap.has(code)) {
+            drop.push(row);
+          }
+        });
+
+        if (!nextStage) {
+          drop.length = 0;
+        }
+
+        if (stage === "LR2") {
+          newlyAdded.length = 0;
+        }
+
+        results[stage] = {
+          active,
+          new: newlyAdded,
+          drop,
+          counts: {
+            active: active.length,
+            new: newlyAdded.length,
+            drop: drop.length
+          }
+        };
+      });
+
+      return results;
+    }
+
+    function renderSummaryCards(summary, visibleStages) {
       const el = document.getElementById("summaryCards");
-      el.innerHTML = STAGES.map(stage => `
+      el.innerHTML = visibleStages.map(stage => `
         <div class="card">
           <div class="card-title">${stage}</div>
           <div class="card-value">${summary[stage]}</div>
@@ -403,31 +426,31 @@
       `).join("");
     }
 
-    function renderTransitionStats(transitionResults) {
-      const el = document.getElementById("transitionStats");
-      el.innerHTML = Object.entries(transitionResults).map(([key, value]) => `
+    function renderStageStats(stageResults, visibleStages) {
+      const el = document.getElementById("stageStats");
+      el.innerHTML = visibleStages.map(stage => `
         <div class="mini-card">
-          <h3>${key.replace("-", " → ")}</h3>
-          <div class="metric"><span>Active</span><strong>${value.counts.active}</strong></div>
-          <div class="metric"><span>New</span><strong>${value.counts.new}</strong></div>
-          <div class="metric"><span>Drop</span><strong>${value.counts.drop}</strong></div>
+          <h3>${stage}</h3>
+          <div class="metric"><span>Active</span><strong>${stageResults[stage].counts.active}</strong></div>
+          <div class="metric"><span>New</span><strong>${stageResults[stage].counts.new}</strong></div>
+          <div class="metric"><span>Drop</span><strong>${stageResults[stage].counts.drop}</strong></div>
         </div>
       `).join("");
     }
 
-    function renderChart(transitionResults) {
-      const labels = Object.keys(transitionResults).map(x => x.replace("-", " → "));
-      const activeData = Object.values(transitionResults).map(x => x.counts.active);
-      const newData = Object.values(transitionResults).map(x => x.counts.new);
-      const dropData = Object.values(transitionResults).map(x => x.counts.drop);
+    function renderChart(stageResults, visibleStages) {
+      const labels = visibleStages;
+      const activeData = visibleStages.map(stage => stageResults[stage].counts.active);
+      const newData = visibleStages.map(stage => stageResults[stage].counts.new);
+      const dropData = visibleStages.map(stage => stageResults[stage].counts.drop);
 
-      const ctx = document.getElementById("transitionChart").getContext("2d");
+      const ctx = document.getElementById("stageChart").getContext("2d");
 
-      if (transitionChart) {
-        transitionChart.destroy();
+      if (stageChart) {
+        stageChart.destroy();
       }
 
-      transitionChart = new Chart(ctx, {
+      stageChart = new Chart(ctx, {
         type: "bar",
         data: {
           labels,
@@ -458,7 +481,7 @@
             },
             title: {
               display: true,
-              text: "Confirmed Transition Counts"
+              text: "Stage Status Counts"
             }
           },
           scales: {
@@ -473,42 +496,47 @@
       });
     }
 
-    function buildDetailMap(transitionResults) {
+    function buildDetailMap(stageResults, visibleStages) {
       const result = {};
-      Object.keys(transitionResults).forEach(key => {
-        result[key] = {
-          Active: transitionResults[key].active,
-          New: transitionResults[key].new,
-          Drop: transitionResults[key].drop
+      visibleStages.forEach(stage => {
+        result[stage] = {
+          Active: stageResults[stage].active,
+          New: stageResults[stage].new,
+          Drop: stageResults[stage].drop
         };
       });
       return result;
     }
 
-    function renderTransitionFilterOptions(transitionResults) {
-      const select = document.getElementById("transitionFilter");
-      const keys = Object.keys(transitionResults);
-
-      select.innerHTML = keys.map(key => `
-        <option value="${key}">${key.replace("-", " → ")}</option>
+    function renderStageFilterOptions(visibleStages) {
+      const select = document.getElementById("stageFilter");
+      select.innerHTML = visibleStages.map(stage => `
+        <option value="${stage}">${stage}</option>
       `).join("");
     }
 
+    function ensureValidTypeForStage(stage) {
+      const typeSelect = document.getElementById("typeFilter");
+      if (stage === "LR2" && typeSelect.value === "New") {
+        typeSelect.value = "Active";
+      }
+    }
+
     function renderDetailTable() {
-      const transition = document.getElementById("transitionFilter").value;
+      const stage = document.getElementById("stageFilter").value;
       const type = document.getElementById("typeFilter").value;
       const search = document.getElementById("searchFilter").value.trim().toLowerCase();
 
-      if (!transition || !currentDetailMap[transition]) {
+      if (!stage || !currentDetailMap[stage]) {
         document.getElementById("detailTableBody").innerHTML = `
           <tr>
-            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
+            <td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td>
           </tr>
         `;
         return;
       }
 
-      let rows = currentDetailMap[transition][type] || [];
+      let rows = currentDetailMap[stage][type] || [];
 
       if (search) {
         rows = rows.filter(row => {
@@ -522,6 +550,7 @@
       tbody.innerHTML = rows.map((row, index) => `
         <tr>
           <td>${index + 1}</td>
+          <td>${escapeHtml(stage)}</td>
           <td><span class="tag ${type.toLowerCase()}">${type}</span></td>
           <td>${escapeHtml(row["Development code"])}</td>
           <td>${escapeHtml(row["Gender_Model"])}</td>
@@ -533,7 +562,7 @@
       if (!rows.length) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
+            <td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td>
           </tr>
         `;
       }
@@ -568,7 +597,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Colorway Stage Transition Dashboard</title>
+<title>Colorway Stage Dashboard</title>
 </head>
 <body>
 ${document.documentElement.querySelector(".container").outerHTML}
@@ -610,37 +639,42 @@ ${document.documentElement.querySelector(".container").outerHTML}
           return;
         }
 
-        const summary = stageSummary(rows);
+        const visibleStages = STAGES.filter(stage => stageHasAnyData(rows, stage));
 
-        const transitionResults = {
-          "LR2-FLC": analyzeTransition(rows, "LR2", "FLC"),
-          "FLC-SMS": analyzeTransition(rows, "FLC", "SMS")
-        };
-
-        const noteParts = [];
-
-        if (stageHasAnyData(rows, "CFM")) {
-          transitionResults["SMS-CFM"] = analyzeTransition(rows, "SMS", "CFM");
-        } else {
-          noteParts.push("SMS → CFM is hidden because CFM data is not available yet.");
+        if (!visibleStages.length) {
+          alert("No stage data found.");
+          return;
         }
 
-        renderSummaryCards(summary);
-        renderTransitionStats(transitionResults);
-        renderChart(transitionResults);
+        const summary = stageSummary(rows, visibleStages);
+        const stageResults = analyzeStages(rows, visibleStages);
 
-        currentDetailMap = buildDetailMap(transitionResults);
-        renderTransitionFilterOptions(transitionResults);
+        const noteParts = [];
+        if (!stageHasAnyData(rows, "CFM")) {
+          noteParts.push("CFM is hidden because CFM data is not available yet.");
+        }
+
+        renderSummaryCards(summary, visibleStages);
+        renderStageStats(stageResults, visibleStages);
+        renderChart(stageResults, visibleStages);
+
+        currentDetailMap = buildDetailMap(stageResults, visibleStages);
+        renderStageFilterOptions(visibleStages);
+        ensureValidTypeForStage(document.getElementById("stageFilter").value);
         renderDetailTable();
 
-        document.getElementById("transitionNote").textContent = noteParts.join(" ");
+        document.getElementById("stageNote").textContent = noteParts.join(" ");
         buildExportHtml();
       };
 
       reader.readAsArrayBuffer(file);
     });
 
-    document.getElementById("transitionFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("stageFilter").addEventListener("change", () => {
+      ensureValidTypeForStage(document.getElementById("stageFilter").value);
+      renderDetailTable();
+    });
+
     document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
     document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
 
