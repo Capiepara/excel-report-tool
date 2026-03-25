@@ -7,11 +7,33 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    * { box-sizing: border-box; font-family: Arial, sans-serif; }
-    body { margin: 0; padding: 24px; background: #eef2f7; color: #1f2937; }
-    .container { max-width: 1280px; margin: 0 auto; }
-    h1 { margin: 0 0 8px; color: #123d8a; }
-    .subtitle { margin: 0 0 20px; color: #6b7280; }
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #eef2f7;
+      color: #1f2937;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      color: #123d8a;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: #6b7280;
+    }
+
     .panel {
       background: #fff;
       border-radius: 14px;
@@ -19,15 +41,35 @@
       margin-bottom: 20px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.08);
     }
-    .top-row { display: flex; gap: 12px; align-items: end; flex-wrap: wrap; }
-    .field { display: flex; flex-direction: column; gap: 8px; }
-    .field label { font-weight: 700; font-size: 14px; }
-    input[type="file"], input[type="text"], select, button {
+
+    .top-row {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    select,
+    button {
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid #cbd5e1;
       font-size: 14px;
     }
+
     button {
       background: #123d8a;
       color: white;
@@ -35,33 +77,62 @@
       cursor: pointer;
       font-weight: 700;
     }
-    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
     .card {
       background: #f8fafc;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       padding: 16px;
     }
-    .card-title { color: #6b7280; font-size: 14px; margin-bottom: 8px; }
-    .card-value { font-size: 30px; font-weight: 700; color: #111827; }
-    .sub-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; }
+
+    .card-title {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-size: 30px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 20px;
+    }
+
     .stage-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 16px;
       margin-top: 16px;
     }
+
     .mini-card {
       background: #f8fafc;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       padding: 16px;
     }
+
     .mini-card h3 {
       margin: 0 0 12px;
       color: #123d8a;
       font-size: 16px;
     }
+
     .metric {
       display: flex;
       justify-content: space-between;
@@ -69,8 +140,20 @@
       border-bottom: 1px dashed #e5e7eb;
       font-size: 14px;
     }
-    .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
     th {
       background: #123d8a;
       color: white;
@@ -80,19 +163,25 @@
       position: sticky;
       top: 0;
     }
+
     td {
       padding: 12px;
       border-bottom: 1px solid #e5e7eb;
       font-size: 14px;
       vertical-align: top;
     }
-    tr:hover td { background: #f8fafc; }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
     .table-wrap {
       max-height: 520px;
       overflow: auto;
       border: 1px solid #e5e7eb;
       border-radius: 10px;
     }
+
     .tag {
       display: inline-block;
       padding: 4px 10px;
@@ -101,14 +190,35 @@
       font-weight: 700;
       color: white;
     }
+
     .active { background: #16a34a; }
     .new { background: #2563eb; }
     .drop { background: #dc2626; }
-    .hint, .note { color: #6b7280; font-size: 13px; margin-top: 10px; line-height: 1.5; }
-    canvas { width: 100% !important; max-height: 420px !important; }
+
+    .hint {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 420px !important;
+    }
 
     @media (max-width: 900px) {
-      .cards, .stage-grid, .sub-grid { grid-template-columns: 1fr; }
+      .cards,
+      .stage-grid,
+      .sub-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -345,22 +455,41 @@
         data: {
           labels,
           datasets: [
-            { label: "Active", data: activeData, backgroundColor: "#16a34a" },
-            { label: "New", data: newData, backgroundColor: "#2563eb" },
-            { label: "Drop", data: dropData, backgroundColor: "#dc2626" }
+            {
+              label: "Active",
+              data: activeData,
+              backgroundColor: "#16a34a"
+            },
+            {
+              label: "New",
+              data: newData,
+              backgroundColor: "#2563eb"
+            },
+            {
+              label: "Drop",
+              data: dropData,
+              backgroundColor: "#dc2626"
+            }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: "top" },
-            title: { display: true, text: "Stage Status Counts" }
+            legend: {
+              position: "top"
+            },
+            title: {
+              display: true,
+              text: "Stage Status Counts"
+            }
           },
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { precision: 0 }
+              ticks: {
+                precision: 0
+              }
             }
           }
         }
@@ -400,7 +529,9 @@
 
       if (!stage || !currentDetailMap[stage]) {
         document.getElementById("detailTableBody").innerHTML = `
-          <tr><td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td></tr>
+          <tr>
+            <td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td>
+          </tr>
         `;
         return;
       }
@@ -430,7 +561,9 @@
 
       if (!rows.length) {
         tbody.innerHTML = `
-          <tr><td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td></tr>
+          <tr>
+            <td colspan="7" style="text-align:center;color:#6b7280;">No data found.</td>
+          </tr>
         `;
       }
     }
