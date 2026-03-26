@@ -140,61 +140,6 @@
       border-bottom: 1px dashed #e5e7eb;
       font-size: 14px;
     }
-
-    .path-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .path-card {
-      background: #f8fafc;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 16px;
-    }
-
-    .path-card h3 {
-      margin: 0 0 10px;
-      color: #123d8a;
-      font-size: 16px;
-    }
-
-    .path-meta {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 10px;
-    }
-
-    .path-list-wrap {
-      max-height: 340px;
-      overflow: auto;
-      border-top: 1px dashed #d1d5db;
-      padding-top: 10px;
-    }
-
-    .style-item {
-      padding: 10px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .style-code {
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 4px;
-    }
-
-    .style-model {
-      font-size: 14px;
-      color: #374151;
-    }
-
-    .style-sub {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 2px;
-    }
-
     .empty-note {
       color: #6b7280;
       font-size: 14px;
@@ -308,12 +253,11 @@
     }
 
     @media (max-width: 900px) {
-      .cards,
-      .transition-grid,
-      .sub-grid,
-      .path-grid {
-        grid-template-columns: 1fr;
-      }
+    .cards,
+    .transition-grid,
+    .sub-grid {
+      grid-template-columns: 1fr;
+    }
     }
   </style>
 </head>
@@ -358,12 +302,6 @@
       </div>
       <div id="cfmHint" class="hint"></div>
     </div>
-
-    <div class="panel">
-      <h2>Style Path Overview</h2>
-      <div id="pathOverview" class="path-grid"></div>
-    </div>
-
     <div class="panel">
       <h2>Development Code Stage Matrix</h2>
       <div class="table-wrap">
@@ -612,92 +550,6 @@
       });
     }
 
-    function getStylePath(row) {
-      const path = STAGES.filter(stage => hasStage(row, stage));
-      return path.join(" → ");
-    }
-
-    function buildPathGroups(rows) {
-      const styleMap = new Map();
-
-      rows.forEach(row => {
-        const code = String(row["Development code"] ?? "").trim();
-        if (!code) return;
-
-        if (!styleMap.has(code)) {
-          styleMap.set(code, row);
-        } else {
-          const oldRow = styleMap.get(code);
-          const oldCount = STAGES.filter(stage => hasStage(oldRow, stage)).length;
-          const newCount = STAGES.filter(stage => hasStage(row, stage)).length;
-          if (newCount > oldCount) styleMap.set(code, row);
-        }
-      });
-
-      const pathGroups = {};
-
-      styleMap.forEach(row => {
-        const path = getStylePath(row);
-        if (!path) return;
-        if (!pathGroups[path]) pathGroups[path] = [];
-        pathGroups[path].push(row);
-      });
-
-      const orderedPaths = [
-        "LR2 → FLC → SMS → CFM",
-        "LR2 → FLC → SMS",
-        "LR2 → FLC",
-        "LR2",
-        "FLC → SMS → CFM",
-        "FLC → SMS",
-        "FLC",
-        "SMS → CFM",
-        "SMS",
-        "CFM"
-      ];
-
-      const sorted = {};
-      orderedPaths.forEach(path => {
-        if (pathGroups[path]) sorted[path] = pathGroups[path];
-      });
-
-      Object.keys(pathGroups).forEach(path => {
-        if (!sorted[path]) sorted[path] = pathGroups[path];
-      });
-
-      return sorted;
-    }
-
-    function renderPathOverview(pathGroups) {
-      const el = document.getElementById("pathOverview");
-      const paths = Object.keys(pathGroups);
-
-      el.innerHTML = paths.map(path => {
-        const rows = pathGroups[path] || [];
-        const listHtml = rows.map(row => `
-          <div class="style-item">
-            <div class="style-code">${escapeHtml(row["Development code"])}</div>
-            <div class="style-model">${escapeHtml(row["Gender_Model"])}</div>
-            <div class="style-sub">
-              Factory: ${escapeHtml(row["Factory"])} | Material: ${escapeHtml(row["Material Indicator"])}
-            </div>
-          </div>
-        `).join("");
-
-        return `
-          <div class="path-card">
-            <h3>${path}</h3>
-            <div class="path-meta">Styles: <strong>${rows.length}</strong></div>
-            <div class="path-list-wrap">${listHtml || `<div class="empty-note">No style.</div>`}</div>
-          </div>
-        `;
-      }).join("");
-
-      if (!paths.length) {
-        el.innerHTML = `<div class="empty-note">No style path found.</div>`;
-      }
-    }
-
     function buildDevelopmentCodeMatrix(rows) {
       const codeMap = new Map();
 
@@ -896,15 +748,6 @@
 
         const summary = stageSummary(rows);
         const stageStatus = buildStageStatus(rows);
-        const pathGroups = buildPathGroups(rows);
-        const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
-
-        renderSummaryCards(summary);
-        renderTransitionStats(stageStatus);
-        renderChart(stageStatus);
-        renderPathOverview(pathGroups);
-        renderDevelopmentCodeMatrix(devCodeMatrix);
-        renderHints(stageStatus);
 
         currentDetailMap = buildDetailMap(stageStatus);
         renderDetailTable();
