@@ -148,33 +148,33 @@
       margin-bottom: 14px;
     }
 
-    .active-style-grid {
+    .path-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
     }
 
-    .style-list-card {
+    .path-card {
       background: #f8fafc;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       padding: 16px;
     }
 
-    .style-list-card h3 {
-      margin: 0 0 12px;
+    .path-card h3 {
+      margin: 0 0 10px;
       color: #123d8a;
       font-size: 16px;
     }
 
-    .style-list-meta {
+    .path-meta {
       font-size: 13px;
       color: #6b7280;
       margin-bottom: 10px;
     }
 
-    .style-list-wrap {
-      max-height: 320px;
+    .path-list-wrap {
+      max-height: 340px;
       overflow: auto;
       border-top: 1px dashed #d1d5db;
       padding-top: 10px;
@@ -271,7 +271,7 @@
       .cards,
       .transition-grid,
       .sub-grid,
-      .active-style-grid {
+      .path-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -300,7 +300,7 @@
         <button id="downloadBtn">Download HTML</button>
       </div>
       <div class="hint">
-        Expected columns in Sheet1: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
+        Expected columns: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
       </div>
     </div>
 
@@ -320,29 +320,16 @@
     </div>
 
     <div class="panel">
-      <h2>Active Style Across Stages</h2>
-      <div id="activeStyleLists" class="active-style-grid"></div>
+      <h2>Style Path Overview</h2>
+      <div id="pathOverview" class="path-grid"></div>
     </div>
 
     <div class="panel">
-      <h2>Detail List</h2>
+      <h2>Style Path Detail</h2>
       <div class="filters">
         <div class="field">
-          <label>Transition</label>
-          <select id="transitionFilter">
-            <option value="LR2-FLC">LR2 → FLC</option>
-            <option value="FLC-SMS">FLC → SMS</option>
-            <option value="SMS-CFM">SMS → CFM</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Type</label>
-          <select id="typeFilter">
-            <option value="Active">Active</option>
-            <option value="Drop">Drop</option>
-            <option value="New">New</option>
-          </select>
+          <label>Path</label>
+          <select id="pathFilter"></select>
         </div>
 
         <div class="field">
@@ -356,7 +343,7 @@
           <thead>
             <tr>
               <th style="width:70px;">No.</th>
-              <th style="width:110px;">Type</th>
+              <th>Path</th>
               <th>Development code</th>
               <th>Gender_Model</th>
               <th style="width:90px;">Factory</th>
@@ -371,8 +358,8 @@
 
   <script>
     let transitionChart = null;
-    let currentDetailMap = {};
     let exportedHtml = "";
+    let currentPathMap = {};
 
     const STAGES = ["LR2", "FLC", "SMS", "CFM"];
 
@@ -524,27 +511,85 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: {
-                precision: 0
-              }
+              ticks: { precision: 0 }
             }
           }
         }
       });
     }
 
-    function renderActiveStyleLists(transitionResults) {
-      const container = document.getElementById("activeStyleLists");
+    function getStylePath(row) {
+      const path = STAGES.filter(stage => hasStage(row, stage));
+      return path.join(" → ");
+    }
 
-      const transitions = [
-        { key: "LR2-FLC", label: "LR2 → FLC" },
-        { key: "FLC-SMS", label: "FLC → SMS" },
-        { key: "SMS-CFM", label: "SMS → CFM" }
+    function buildPathGroups(rows) {
+      const styleMap = new Map();
+
+      rows.forEach(row => {
+        const code = String(row["Development code"] ?? "").trim();
+        if (!code) return;
+
+        if (!styleMap.has(code)) {
+          styleMap.set(code, row);
+        } else {
+          const oldRow = styleMap.get(code);
+          const oldCount = STAGES.filter(stage => hasStage(oldRow, stage)).length;
+          const newCount = STAGES.filter(stage => hasStage(row, stage)).length;
+
+          if (newCount > oldCount) {
+            styleMap.set(code, row);
+          }
+        }
+      });
+
+      const pathGroups = {};
+
+      styleMap.forEach(row => {
+        const path = getStylePath(row);
+        if (!path) return;
+
+        if (!pathGroups[path]) {
+          pathGroups[path] = [];
+        }
+        pathGroups[path].push(row);
+      });
+
+      const orderedPaths = [
+        "LR2 → FLC → SMS → CFM",
+        "LR2 → FLC → SMS",
+        "LR2 → FLC",
+        "LR2",
+        "FLC → SMS → CFM",
+        "FLC → SMS",
+        "FLC",
+        "SMS → CFM",
+        "SMS",
+        "CFM"
       ];
 
-      container.innerHTML = transitions.map(item => {
-        const rows = transitionResults[item.key]?.active || [];
+      const sorted = {};
+      orderedPaths.forEach(path => {
+        if (pathGroups[path]) {
+          sorted[path] = pathGroups[path];
+        }
+      });
 
+      Object.keys(pathGroups).forEach(path => {
+        if (!sorted[path]) {
+          sorted[path] = pathGroups[path];
+        }
+      });
+
+      return sorted;
+    }
+
+    function renderPathOverview(pathGroups) {
+      const el = document.getElementById("pathOverview");
+      const paths = Object.keys(pathGroups);
+
+      el.innerHTML = paths.map(path => {
+        const rows = pathGroups[path] || [];
         const listHtml = rows.length
           ? rows.map(row => `
               <div class="style-item">
@@ -555,48 +600,36 @@
                 </div>
               </div>
             `).join("")
-          : `<div class="empty-note">No active style.</div>`;
+          : `<div class="empty-note">No style.</div>`;
 
         return `
-          <div class="style-list-card">
-            <h3>${item.label}</h3>
-            <div class="style-list-meta">
-              Active styles: <strong>${rows.length}</strong>
-            </div>
-            <div class="style-list-wrap">
-              ${listHtml}
-            </div>
+          <div class="path-card">
+            <h3>${path}</h3>
+            <div class="path-meta">Styles: <strong>${rows.length}</strong></div>
+            <div class="path-list-wrap">${listHtml}</div>
           </div>
         `;
       }).join("");
+
+      if (!paths.length) {
+        el.innerHTML = `<div class="empty-note">No style path found.</div>`;
+      }
     }
 
-    function buildDetailMap(transitionResults) {
-      return {
-        "LR2-FLC": {
-          Active: transitionResults["LR2-FLC"].active,
-          Drop: transitionResults["LR2-FLC"].drop,
-          New: transitionResults["LR2-FLC"].new
-        },
-        "FLC-SMS": {
-          Active: transitionResults["FLC-SMS"].active,
-          Drop: transitionResults["FLC-SMS"].drop,
-          New: transitionResults["FLC-SMS"].new
-        },
-        "SMS-CFM": {
-          Active: transitionResults["SMS-CFM"].active,
-          Drop: transitionResults["SMS-CFM"].drop,
-          New: transitionResults["SMS-CFM"].new
-        }
-      };
+    function populatePathFilter(pathGroups) {
+      const select = document.getElementById("pathFilter");
+      const paths = Object.keys(pathGroups);
+
+      select.innerHTML = paths.map(path => `
+        <option value="${escapeHtml(path)}">${path}</option>
+      `).join("");
     }
 
     function renderDetailTable() {
-      const transition = document.getElementById("transitionFilter").value;
-      const type = document.getElementById("typeFilter").value;
+      const path = document.getElementById("pathFilter").value;
       const search = document.getElementById("searchFilter").value.trim().toLowerCase();
 
-      let rows = currentDetailMap[transition]?.[type] || [];
+      let rows = currentPathMap[path] || [];
 
       if (search) {
         rows = rows.filter(row => {
@@ -610,7 +643,7 @@
       tbody.innerHTML = rows.map((row, index) => `
         <tr>
           <td>${index + 1}</td>
-          <td><span class="tag ${type.toLowerCase()}">${type}</span></td>
+          <td>${escapeHtml(path)}</td>
           <td>${escapeHtml(row["Development code"])}</td>
           <td>${escapeHtml(row["Gender_Model"])}</td>
           <td>${escapeHtml(row["Factory"])}</td>
@@ -658,14 +691,6 @@ ${document.documentElement.querySelector(".container").outerHTML}
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array" });
 
-        const sheetDropdown = document.getElementById("sheetName");
-
-        if (sheetDropdown.options.length <= 1 && sheetDropdown.options[0].value === "Sheet1") {
-          sheetDropdown.innerHTML = workbook.SheetNames.map(name =>
-            `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`
-          ).join("");
-        }
-
         if (!workbook.SheetNames.includes(sheetName)) {
           alert(`Cannot find sheet: ${sheetName}`);
           return;
@@ -687,12 +712,15 @@ ${document.documentElement.querySelector(".container").outerHTML}
           "SMS-CFM": analyzeTransition(rows, "SMS", "CFM")
         };
 
+        const pathGroups = buildPathGroups(rows);
+
         renderSummaryCards(summary);
         renderTransitionStats(transitionResults);
         renderChart(transitionResults);
-        renderActiveStyleLists(transitionResults);
+        renderPathOverview(pathGroups);
 
-        currentDetailMap = buildDetailMap(transitionResults);
+        currentPathMap = pathGroups;
+        populatePathFilter(pathGroups);
         renderDetailTable();
         buildExportHtml();
       };
@@ -719,8 +747,7 @@ ${document.documentElement.querySelector(".container").outerHTML}
       reader.readAsArrayBuffer(file);
     });
 
-    document.getElementById("transitionFilter").addEventListener("change", renderDetailTable);
-    document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("pathFilter").addEventListener("change", renderDetailTable);
     document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
 
     document.getElementById("downloadBtn").addEventListener("click", () => {
