@@ -61,7 +61,6 @@
     }
 
     input[type="file"],
-    input[type="text"],
     select,
     button {
       padding: 10px 12px;
@@ -109,7 +108,7 @@
 
     .sub-grid {
       display: grid;
-      grid-template-columns: 1.25fr 1fr;
+      grid-template-columns: 1.2fr 1fr;
       gap: 20px;
     }
 
@@ -192,20 +191,13 @@
     }
 
     .active { background: #16a34a; }
-    .new { background: #2563eb; }
     .drop { background: #dc2626; }
+    .new { background: #2563eb; }
 
     .hint {
       color: #6b7280;
       font-size: 13px;
       margin-top: 10px;
-      line-height: 1.5;
-    }
-
-    .note {
-      margin-top: 12px;
-      color: #6b7280;
-      font-size: 13px;
     }
 
     canvas {
@@ -244,10 +236,8 @@
         <button id="generateBtn">Generate Dashboard</button>
         <button id="downloadBtn">Download HTML</button>
       </div>
-
       <div class="hint">
-        Expected columns in Sheet1:
-        Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
+        Expected columns in Sheet1: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
       </div>
     </div>
 
@@ -261,7 +251,6 @@
       <div class="sub-grid">
         <div>
           <canvas id="transitionChart"></canvas>
-          <div id="transitionNote" class="note"></div>
         </div>
         <div id="transitionStats" class="transition-grid"></div>
       </div>
@@ -272,15 +261,19 @@
       <div class="filters">
         <div class="field">
           <label>Transition</label>
-          <select id="transitionFilter"></select>
+          <select id="transitionFilter">
+            <option value="LR2-FLC">LR2 → FLC</option>
+            <option value="FLC-SMS">FLC → SMS</option>
+            <option value="SMS-CFM">SMS → CFM</option>
+          </select>
         </div>
 
         <div class="field">
           <label>Type</label>
           <select id="typeFilter">
             <option value="Active">Active</option>
-            <option value="New">New</option>
             <option value="Drop">Drop</option>
+            <option value="New">New</option>
           </select>
         </div>
 
@@ -314,6 +307,11 @@
     let exportedHtml = "";
 
     const STAGES = ["LR2", "FLC", "SMS", "CFM"];
+    const TRANSITIONS = [
+      ["LR2", "FLC"],
+      ["FLC", "SMS"],
+      ["SMS", "CFM"]
+    ];
 
     function normalizeValue(v) {
       return v !== undefined && v !== null && String(v).trim() !== "" && !Number.isNaN(v);
@@ -321,10 +319,6 @@
 
     function hasStage(row, stage) {
       return normalizeValue(row[stage]);
-    }
-
-    function stageHasAnyData(rows, stage) {
-      return rows.some(row => hasStage(row, stage));
     }
 
     function escapeHtml(value) {
@@ -361,7 +355,7 @@
 
       fromCodes.forEach(code => {
         if (toCodes.has(code)) {
-          active.push(toMap.get(code) || fromMap.get(code));
+          active.push(fromMap.get(code));
         } else {
           drop.push(fromMap.get(code));
         }
@@ -379,8 +373,8 @@
         new: newlyAdded,
         counts: {
           active: active.length,
-          new: newlyAdded.length,
-          drop: drop.length
+          drop: drop.length,
+          new: newlyAdded.length
         }
       };
     }
@@ -409,8 +403,8 @@
         <div class="mini-card">
           <h3>${key.replace("-", " → ")}</h3>
           <div class="metric"><span>Active</span><strong>${value.counts.active}</strong></div>
-          <div class="metric"><span>New</span><strong>${value.counts.new}</strong></div>
           <div class="metric"><span>Drop</span><strong>${value.counts.drop}</strong></div>
+          <div class="metric"><span>New</span><strong>${value.counts.new}</strong></div>
         </div>
       `).join("");
     }
@@ -418,8 +412,8 @@
     function renderChart(transitionResults) {
       const labels = Object.keys(transitionResults).map(x => x.replace("-", " → "));
       const activeData = Object.values(transitionResults).map(x => x.counts.active);
-      const newData = Object.values(transitionResults).map(x => x.counts.new);
       const dropData = Object.values(transitionResults).map(x => x.counts.drop);
+      const newData = Object.values(transitionResults).map(x => x.counts.new);
 
       const ctx = document.getElementById("transitionChart").getContext("2d");
 
@@ -438,14 +432,14 @@
               backgroundColor: "#16a34a"
             },
             {
-              label: "New",
-              data: newData,
-              backgroundColor: "#2563eb"
-            },
-            {
               label: "Drop",
               data: dropData,
               backgroundColor: "#dc2626"
+            },
+            {
+              label: "New",
+              data: newData,
+              backgroundColor: "#2563eb"
             }
           ]
         },
@@ -458,7 +452,7 @@
             },
             title: {
               display: true,
-              text: "Confirmed Transition Counts"
+              text: "Stage Transition Counts"
             }
           },
           scales: {
@@ -474,39 +468,29 @@
     }
 
     function buildDetailMap(transitionResults) {
-      const result = {};
-      Object.keys(transitionResults).forEach(key => {
-        result[key] = {
-          Active: transitionResults[key].active,
-          New: transitionResults[key].new,
-          Drop: transitionResults[key].drop
-        };
-      });
-      return result;
-    }
-
-    function renderTransitionFilterOptions(transitionResults) {
-      const select = document.getElementById("transitionFilter");
-      const keys = Object.keys(transitionResults);
-
-      select.innerHTML = keys.map(key => `
-        <option value="${key}">${key.replace("-", " → ")}</option>
-      `).join("");
+      return {
+        "LR2-FLC": {
+          Active: transitionResults["LR2-FLC"].active,
+          Drop: transitionResults["LR2-FLC"].drop,
+          New: transitionResults["LR2-FLC"].new
+        },
+        "FLC-SMS": {
+          Active: transitionResults["FLC-SMS"].active,
+          Drop: transitionResults["FLC-SMS"].drop,
+          New: transitionResults["FLC-SMS"].new
+        },
+        "SMS-CFM": {
+          Active: transitionResults["SMS-CFM"].active,
+          Drop: transitionResults["SMS-CFM"].drop,
+          New: transitionResults["SMS-CFM"].new
+        }
+      };
     }
 
     function renderDetailTable() {
       const transition = document.getElementById("transitionFilter").value;
       const type = document.getElementById("typeFilter").value;
       const search = document.getElementById("searchFilter").value.trim().toLowerCase();
-
-      if (!transition || !currentDetailMap[transition]) {
-        document.getElementById("detailTableBody").innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
-          </tr>
-        `;
-        return;
-      }
 
       let rows = currentDetailMap[transition][type] || [];
 
@@ -541,7 +525,7 @@
 
     function validateColumns(rows) {
       if (!rows.length) return false;
-
+    
       const required = [
         "Factory",
         "Material Indicator",
@@ -552,12 +536,12 @@
         "SMS",
         "CFM"
       ];
-
+    
       const allKeys = new Set();
       rows.forEach(row => {
         Object.keys(row).forEach(key => allKeys.add(key));
       });
-
+    
       return required.every(col => allKeys.has(col));
     }
 
@@ -605,35 +589,22 @@ ${document.documentElement.querySelector(".container").outerHTML}
           return;
         }
 
-        if (!validateColumns(rows)) {
-          alert("Invalid file format. Please check required columns in Sheet1.");
-          return;
-        }
+        console.log("Columns found:", Object.keys(rows[0] || {}));
 
         const summary = stageSummary(rows);
 
         const transitionResults = {
           "LR2-FLC": analyzeTransition(rows, "LR2", "FLC"),
-          "FLC-SMS": analyzeTransition(rows, "FLC", "SMS")
+          "FLC-SMS": analyzeTransition(rows, "FLC", "SMS"),
+          "SMS-CFM": analyzeTransition(rows, "SMS", "CFM")
         };
-
-        const noteParts = [];
-
-        if (stageHasAnyData(rows, "CFM")) {
-          transitionResults["SMS-CFM"] = analyzeTransition(rows, "SMS", "CFM");
-        } else {
-          noteParts.push("SMS → CFM is hidden because CFM data is not available yet.");
-        }
 
         renderSummaryCards(summary);
         renderTransitionStats(transitionResults);
         renderChart(transitionResults);
 
         currentDetailMap = buildDetailMap(transitionResults);
-        renderTransitionFilterOptions(transitionResults);
         renderDetailTable();
-
-        document.getElementById("transitionNote").textContent = noteParts.join(" ");
         buildExportHtml();
       };
 
