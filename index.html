@@ -7,6 +7,48 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    .matrix-cell {
+  text-align: center;
+  font-weight: 700;
+}
+
+.stage-box {
+  display: inline-block;
+  width: 34px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #f3f4f6;
+}
+
+.stage-box.on.lr2 {
+  background: #8ecae6;
+  border-color: #8ecae6;
+}
+
+.stage-box.on.flc {
+  background: #b7e4c7;
+  border-color: #b7e4c7;
+}
+
+.stage-box.on.sms {
+  background: #f4a261;
+  border-color: #f4a261;
+}
+
+.stage-box.on.cfm {
+  background: #cdb4db;
+  border-color: #cdb4db;
+}
+
+.path-text {
+  font-weight: 600;
+  color: #374151;
+}
+
+.path-muted {
+  color: #9ca3af;
+}
     * {
       box-sizing: border-box;
       font-family: Arial, sans-serif;
@@ -317,6 +359,24 @@
 
     <div class="panel">
       <h2>Style Path Overview</h2>
+      <div class="panel">
+  <h2>Gender Model Stage Matrix</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:220px;">Gender_Model</th>
+          <th style="width:90px; text-align:center;">LR2</th>
+          <th style="width:90px; text-align:center;">FLC</th>
+          <th style="width:90px; text-align:center;">SMS</th>
+          <th style="width:90px; text-align:center;">CFM</th>
+          <th style="min-width:220px;">Path</th>
+        </tr>
+      </thead>
+      <tbody id="genderModelMatrixBody"></tbody>
+    </table>
+  </div>
+</div>
       <div id="pathOverview" class="path-grid"></div>
     </div>
 
@@ -366,6 +426,101 @@
   </div>
 
   <script>
+    function buildGenderModelMatrix(rows) {
+  const modelMap = new Map();
+
+  rows.forEach(row => {
+    const model = String(row["Gender_Model"] ?? "").trim();
+    if (!model) return;
+
+    if (!modelMap.has(model)) {
+      modelMap.set(model, {
+        genderModel: model,
+        LR2: false,
+        FLC: false,
+        SMS: false,
+        CFM: false
+      });
+    }
+
+    const item = modelMap.get(model);
+
+    if (hasStage(row, "LR2")) item.LR2 = true;
+    if (hasStage(row, "FLC")) item.FLC = true;
+    if (hasStage(row, "SMS")) item.SMS = true;
+    if (hasStage(row, "CFM")) item.CFM = true;
+  });
+
+  const result = Array.from(modelMap.values()).map(item => {
+    const stages = [];
+    if (item.LR2) stages.push("LR2");
+    if (item.FLC) stages.push("FLC");
+    if (item.SMS) stages.push("SMS");
+    if (item.CFM) stages.push("CFM");
+
+    return {
+      ...item,
+      path: stages.join(" → "),
+      stageCount: stages.length
+    };
+  });
+
+  const preferredOrder = {
+    "LR2 → FLC → SMS → CFM": 1,
+    "LR2 → FLC → SMS": 2,
+    "LR2 → FLC": 3,
+    "LR2": 4,
+    "FLC → SMS → CFM": 5,
+    "FLC → SMS": 6,
+    "FLC": 7,
+    "SMS → CFM": 8,
+    "SMS": 9,
+    "CFM": 10
+  };
+
+  result.sort((a, b) => {
+    const aOrder = preferredOrder[a.path] || 999;
+    const bOrder = preferredOrder[b.path] || 999;
+
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.genderModel.localeCompare(b.genderModel);
+  });
+
+  return result;
+}
+
+function renderStageBox(isOn, stageClass) {
+  return `<span class="stage-box ${isOn ? `on ${stageClass}` : ""}"></span>`;
+}
+
+function renderGenderModelMatrix(matrixRows) {
+  const tbody = document.getElementById("genderModelMatrixBody");
+
+  if (!matrixRows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center;color:#6b7280;">No gender model data found.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = matrixRows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.genderModel)}</td>
+      <td class="matrix-cell">${renderStageBox(row.LR2, "lr2")}</td>
+      <td class="matrix-cell">${renderStageBox(row.FLC, "flc")}</td>
+      <td class="matrix-cell">${renderStageBox(row.SMS, "sms")}</td>
+      <td class="matrix-cell">${renderStageBox(row.CFM, "cfm")}</td>
+      <td>
+        ${row.path
+          ? `<span class="path-text">${escapeHtml(row.path)}</span>`
+          : `<span class="path-muted">-</span>`
+        }
+      </td>
+    </tr>
+  `).join("");
+}
     let transitionChart = null;
     let currentDetailMap = {};
 
@@ -726,16 +881,18 @@
           return;
         }
 
-        const summary = stageSummary(rows);
+       const summary = stageSummary(rows);
         const stageStatus = buildStageStatus(rows);
         const pathGroups = buildPathGroups(rows);
-
+        const genderModelMatrix = buildGenderModelMatrix(rows);
+        
         renderSummaryCards(summary);
         renderTransitionStats(stageStatus);
         renderChart(stageStatus);
         renderPathOverview(pathGroups);
+        renderGenderModelMatrix(genderModelMatrix);
         renderHints(stageStatus);
-
+        
         currentDetailMap = buildDetailMap(stageStatus);
         renderDetailTable();
       };
