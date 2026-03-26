@@ -458,11 +458,10 @@
     if (item.SMS) stages.push("SMS");
     if (item.CFM) stages.push("CFM");
 
-    return {
-      ...item,
-      path: stages.join(" → "),
-      stageCount: stages.length
-    };
+   return {
+    ...item,
+    path: getContinuousPath(item)
+  };
   });
 
   const preferredOrder = {
