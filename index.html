@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,7 +62,6 @@
     }
 
     input[type="file"],
-    input[type="text"],
     select,
     button {
       padding: 10px 12px;
@@ -148,67 +148,6 @@
       margin-bottom: 14px;
     }
 
-    .path-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .path-card {
-      background: #f8fafc;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 16px;
-    }
-
-    .path-card h3 {
-      margin: 0 0 10px;
-      color: #123d8a;
-      font-size: 16px;
-    }
-
-    .path-meta {
-      font-size: 13px;
-      color: #6b7280;
-      margin-bottom: 10px;
-    }
-
-    .path-list-wrap {
-      max-height: 340px;
-      overflow: auto;
-      border-top: 1px dashed #d1d5db;
-      padding-top: 10px;
-    }
-
-    .style-item {
-      padding: 10px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .style-code {
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 4px;
-    }
-
-    .style-model {
-      font-size: 14px;
-      color: #374151;
-    }
-
-    .style-sub {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 2px;
-    }
-
-    .empty-note {
-      color: #6b7280;
-      font-size: 14px;
-      text-align: center;
-      padding: 16px 0;
-    }
-
     table {
       width: 100%;
       border-collapse: collapse;
@@ -270,8 +209,7 @@
     @media (max-width: 900px) {
       .cards,
       .transition-grid,
-      .sub-grid,
-      .path-grid {
+      .sub-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -300,7 +238,7 @@
         <button id="downloadBtn">Download HTML</button>
       </div>
       <div class="hint">
-        Expected columns: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
+        Expected columns in Sheet1: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
       </div>
     </div>
 
@@ -320,16 +258,24 @@
     </div>
 
     <div class="panel">
-      <h2>Style Path Overview</h2>
-      <div id="pathOverview" class="path-grid"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Style Path Detail</h2>
+      <h2>Detail List</h2>
       <div class="filters">
         <div class="field">
-          <label>Path</label>
-          <select id="pathFilter"></select>
+          <label>Transition</label>
+          <select id="transitionFilter">
+            <option value="LR2-FLC">LR2 → FLC</option>
+            <option value="FLC-SMS">FLC → SMS</option>
+            <option value="SMS-CFM">SMS → CFM</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Type</label>
+          <select id="typeFilter">
+            <option value="Active">Active</option>
+            <option value="Drop">Drop</option>
+            <option value="New">New</option>
+          </select>
         </div>
 
         <div class="field">
@@ -343,7 +289,7 @@
           <thead>
             <tr>
               <th style="width:70px;">No.</th>
-              <th>Path</th>
+              <th style="width:110px;">Type</th>
               <th>Development code</th>
               <th>Gender_Model</th>
               <th style="width:90px;">Factory</th>
@@ -358,10 +304,15 @@
 
   <script>
     let transitionChart = null;
+    let currentDetailMap = {};
     let exportedHtml = "";
-    let currentPathMap = {};
 
     const STAGES = ["LR2", "FLC", "SMS", "CFM"];
+    const TRANSITIONS = [
+      ["LR2", "FLC"],
+      ["FLC", "SMS"],
+      ["SMS", "CFM"]
+    ];
 
     function normalizeValue(v) {
       return v !== undefined && v !== null && String(v).trim() !== "" && !Number.isNaN(v);
@@ -382,16 +333,13 @@
 
     function buildStageMap(rows, stage) {
       const map = new Map();
-
       rows.forEach(row => {
         const code = String(row["Development code"] ?? "").trim();
         if (!code) return;
-
         if (hasStage(row, stage)) {
           map.set(code, row);
         }
       });
-
       return map;
     }
 
@@ -465,8 +413,8 @@
     function renderChart(transitionResults) {
       const labels = Object.keys(transitionResults).map(x => x.replace("-", " → "));
       const activeData = Object.values(transitionResults).map(x => x.counts.active);
-      const newData = Object.values(transitionResults).map(x => x.counts.new);
       const dropData = Object.values(transitionResults).map(x => x.counts.drop);
+      const newData = Object.values(transitionResults).map(x => x.counts.new);
 
       const ctx = document.getElementById("transitionChart").getContext("2d");
 
@@ -485,14 +433,14 @@
               backgroundColor: "#16a34a"
             },
             {
-              label: "New",
-              data: newData,
-              backgroundColor: "#2563eb"
-            },
-            {
               label: "Drop",
               data: dropData,
               backgroundColor: "#dc2626"
+            },
+            {
+              label: "New",
+              data: newData,
+              backgroundColor: "#2563eb"
             }
           ]
         },
@@ -511,125 +459,41 @@
           scales: {
             y: {
               beginAtZero: true,
-              ticks: { precision: 0 }
+              ticks: {
+                precision: 0
+              }
             }
           }
         }
       });
     }
 
-    function getStylePath(row) {
-      const path = STAGES.filter(stage => hasStage(row, stage));
-      return path.join(" → ");
-    }
-
-    function buildPathGroups(rows) {
-      const styleMap = new Map();
-
-      rows.forEach(row => {
-        const code = String(row["Development code"] ?? "").trim();
-        if (!code) return;
-
-        if (!styleMap.has(code)) {
-          styleMap.set(code, row);
-        } else {
-          const oldRow = styleMap.get(code);
-          const oldCount = STAGES.filter(stage => hasStage(oldRow, stage)).length;
-          const newCount = STAGES.filter(stage => hasStage(row, stage)).length;
-
-          if (newCount > oldCount) {
-            styleMap.set(code, row);
-          }
+    function buildDetailMap(transitionResults) {
+      return {
+        "LR2-FLC": {
+          Active: transitionResults["LR2-FLC"].active,
+          Drop: transitionResults["LR2-FLC"].drop,
+          New: transitionResults["LR2-FLC"].new
+        },
+        "FLC-SMS": {
+          Active: transitionResults["FLC-SMS"].active,
+          Drop: transitionResults["FLC-SMS"].drop,
+          New: transitionResults["FLC-SMS"].new
+        },
+        "SMS-CFM": {
+          Active: transitionResults["SMS-CFM"].active,
+          Drop: transitionResults["SMS-CFM"].drop,
+          New: transitionResults["SMS-CFM"].new
         }
-      });
-
-      const pathGroups = {};
-
-      styleMap.forEach(row => {
-        const path = getStylePath(row);
-        if (!path) return;
-
-        if (!pathGroups[path]) {
-          pathGroups[path] = [];
-        }
-        pathGroups[path].push(row);
-      });
-
-      const orderedPaths = [
-        "LR2 → FLC → SMS → CFM",
-        "LR2 → FLC → SMS",
-        "LR2 → FLC",
-        "LR2",
-        "FLC → SMS → CFM",
-        "FLC → SMS",
-        "FLC",
-        "SMS → CFM",
-        "SMS",
-        "CFM"
-      ];
-
-      const sorted = {};
-      orderedPaths.forEach(path => {
-        if (pathGroups[path]) {
-          sorted[path] = pathGroups[path];
-        }
-      });
-
-      Object.keys(pathGroups).forEach(path => {
-        if (!sorted[path]) {
-          sorted[path] = pathGroups[path];
-        }
-      });
-
-      return sorted;
-    }
-
-    function renderPathOverview(pathGroups) {
-      const el = document.getElementById("pathOverview");
-      const paths = Object.keys(pathGroups);
-
-      el.innerHTML = paths.map(path => {
-        const rows = pathGroups[path] || [];
-        const listHtml = rows.length
-          ? rows.map(row => `
-              <div class="style-item">
-                <div class="style-code">${escapeHtml(row["Development code"])}</div>
-                <div class="style-model">${escapeHtml(row["Gender_Model"])}</div>
-                <div class="style-sub">
-                  Factory: ${escapeHtml(row["Factory"])} | Material: ${escapeHtml(row["Material Indicator"])}
-                </div>
-              </div>
-            `).join("")
-          : `<div class="empty-note">No style.</div>`;
-
-        return `
-          <div class="path-card">
-            <h3>${path}</h3>
-            <div class="path-meta">Styles: <strong>${rows.length}</strong></div>
-            <div class="path-list-wrap">${listHtml}</div>
-          </div>
-        `;
-      }).join("");
-
-      if (!paths.length) {
-        el.innerHTML = `<div class="empty-note">No style path found.</div>`;
-      }
-    }
-
-    function populatePathFilter(pathGroups) {
-      const select = document.getElementById("pathFilter");
-      const paths = Object.keys(pathGroups);
-
-      select.innerHTML = paths.map(path => `
-        <option value="${escapeHtml(path)}">${path}</option>
-      `).join("");
+      };
     }
 
     function renderDetailTable() {
-      const path = document.getElementById("pathFilter").value;
+      const transition = document.getElementById("transitionFilter").value;
+      const type = document.getElementById("typeFilter").value;
       const search = document.getElementById("searchFilter").value.trim().toLowerCase();
 
-      let rows = currentPathMap[path] || [];
+      let rows = currentDetailMap[transition][type] || [];
 
       if (search) {
         rows = rows.filter(row => {
@@ -643,7 +507,7 @@
       tbody.innerHTML = rows.map((row, index) => `
         <tr>
           <td>${index + 1}</td>
-          <td>${escapeHtml(path)}</td>
+          <td><span class="tag ${type.toLowerCase()}">${type}</span></td>
           <td>${escapeHtml(row["Development code"])}</td>
           <td>${escapeHtml(row["Gender_Model"])}</td>
           <td>${escapeHtml(row["Factory"])}</td>
@@ -658,6 +522,28 @@
           </tr>
         `;
       }
+    }
+
+    function validateColumns(rows) {
+      if (!rows.length) return false;
+    
+      const required = [
+        "Factory",
+        "Material Indicator",
+        "Development code",
+        "Gender_Model",
+        "LR2",
+        "FLC",
+        "SMS",
+        "CFM"
+      ];
+    
+      const allKeys = new Set();
+      rows.forEach(row => {
+        Object.keys(row).forEach(key => allKeys.add(key));
+      });
+    
+      return required.every(col => allKeys.has(col));
     }
 
     function buildExportHtml() {
@@ -704,6 +590,8 @@ ${document.documentElement.querySelector(".container").outerHTML}
           return;
         }
 
+        console.log("Columns found:", Object.keys(rows[0] || {}));
+
         const summary = stageSummary(rows);
 
         const transitionResults = {
@@ -712,15 +600,11 @@ ${document.documentElement.querySelector(".container").outerHTML}
           "SMS-CFM": analyzeTransition(rows, "SMS", "CFM")
         };
 
-        const pathGroups = buildPathGroups(rows);
-
         renderSummaryCards(summary);
         renderTransitionStats(transitionResults);
         renderChart(transitionResults);
-        renderPathOverview(pathGroups);
 
-        currentPathMap = pathGroups;
-        populatePathFilter(pathGroups);
+        currentDetailMap = buildDetailMap(transitionResults);
         renderDetailTable();
         buildExportHtml();
       };
@@ -728,26 +612,8 @@ ${document.documentElement.querySelector(".container").outerHTML}
       reader.readAsArrayBuffer(file);
     });
 
-    document.getElementById("excelFile").addEventListener("change", (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-
-      reader.onload = function(e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetDropdown = document.getElementById("sheetName");
-
-        sheetDropdown.innerHTML = workbook.SheetNames.map(name =>
-          `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`
-        ).join("");
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
-
-    document.getElementById("pathFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("transitionFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
     document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
 
     document.getElementById("downloadBtn").addEventListener("click", () => {
