@@ -140,12 +140,6 @@
       border-bottom: 1px dashed #e5e7eb;
       font-size: 14px;
     }
-    .empty-note {
-      color: #6b7280;
-      font-size: 14px;
-      text-align: center;
-      padding: 16px 0;
-    }
 
     .filters {
       display: flex;
@@ -253,11 +247,11 @@
     }
 
     @media (max-width: 900px) {
-    .cards,
-    .transition-grid,
-    .sub-grid {
-      grid-template-columns: 1fr;
-    }
+      .cards,
+      .transition-grid,
+      .sub-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -302,6 +296,7 @@
       </div>
       <div id="cfmHint" class="hint"></div>
     </div>
+
     <div class="panel">
       <h2>Development Code Stage Matrix</h2>
       <div class="table-wrap">
@@ -748,6 +743,13 @@
 
         const summary = stageSummary(rows);
         const stageStatus = buildStageStatus(rows);
+        const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
+
+        renderSummaryCards(summary);
+        renderTransitionStats(stageStatus);
+        renderChart(stageStatus);
+        renderDevelopmentCodeMatrix(devCodeMatrix);
+        renderHints(stageStatus);
 
         currentDetailMap = buildDetailMap(stageStatus);
         renderDetailTable();
