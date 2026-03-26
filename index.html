@@ -7,47 +7,37 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .matrix-cell {
+    .matrix-stage-cell {
   text-align: center;
   font-weight: 700;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  height: 42px;
 }
 
-.stage-box {
-  display: inline-block;
-  width: 34px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #f3f4f6;
+.matrix-stage-cell.empty {
+  background: #f8fafc;
 }
 
-.stage-box.on.lr2 {
+.matrix-stage-cell.fill-lr2 {
   background: #8ecae6;
-  border-color: #8ecae6;
 }
 
-.stage-box.on.flc {
+.matrix-stage-cell.fill-flc {
   background: #b7e4c7;
-  border-color: #b7e4c7;
 }
 
-.stage-box.on.sms {
+.matrix-stage-cell.fill-sms {
   background: #f4a261;
-  border-color: #f4a261;
 }
 
-.stage-box.on.cfm {
+.matrix-stage-cell.fill-cfm {
   background: #cdb4db;
-  border-color: #cdb4db;
 }
 
 .path-text {
   font-weight: 600;
   color: #374151;
-}
-
-.path-muted {
-  color: #9ca3af;
 }
     * {
       box-sizing: border-box;
@@ -360,12 +350,13 @@
     <div class="panel">
       <h2>Style Path Overview</h2>
       <div class="panel">
-  <h2>Gender Model Stage Matrix</h2>
+  <h2>Development Code Stage Matrix</h2>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th style="min-width:220px;">Gender_Model</th>
+          <th style="min-width:170px;">Development code</th>
+          <th style="min-width:260px;">Gender_Model</th>
           <th style="width:90px; text-align:center;">LR2</th>
           <th style="width:90px; text-align:center;">FLC</th>
           <th style="width:90px; text-align:center;">SMS</th>
@@ -373,7 +364,7 @@
           <th style="min-width:220px;">Path</th>
         </tr>
       </thead>
-      <tbody id="genderModelMatrixBody"></tbody>
+      <tbody id="devCodeMatrixBody"></tbody>
     </table>
   </div>
 </div>
@@ -426,22 +417,7 @@
   </div>
 
   <script>
-    function buildGenderModelMatrix(rows) {
-  const modelMap = new Map();
-
-  rows.forEach(row => {
-    const model = String(row["Gender_Model"] ?? "").trim();
-    if (!model) return;
-
-    if (!modelMap.has(model)) {
-      modelMap.set(model, {
-        genderModel: model,
-        LR2: false,
-        FLC: false,
-        SMS: false,
-        CFM: false
-      });
-    }
+    
 
     const item = modelMap.get(model);
 
@@ -488,38 +464,6 @@
   return result;
 }
 
-function renderStageBox(isOn, stageClass) {
-  return `<span class="stage-box ${isOn ? `on ${stageClass}` : ""}"></span>`;
-}
-
-function renderGenderModelMatrix(matrixRows) {
-  const tbody = document.getElementById("genderModelMatrixBody");
-
-  if (!matrixRows.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" style="text-align:center;color:#6b7280;">No gender model data found.</td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = matrixRows.map(row => `
-    <tr>
-      <td>${escapeHtml(row.genderModel)}</td>
-      <td class="matrix-cell">${renderStageBox(row.LR2, "lr2")}</td>
-      <td class="matrix-cell">${renderStageBox(row.FLC, "flc")}</td>
-      <td class="matrix-cell">${renderStageBox(row.SMS, "sms")}</td>
-      <td class="matrix-cell">${renderStageBox(row.CFM, "cfm")}</td>
-      <td>
-        ${row.path
-          ? `<span class="path-text">${escapeHtml(row.path)}</span>`
-          : `<span class="path-muted">-</span>`
-        }
-      </td>
-    </tr>
-  `).join("");
-}
     let transitionChart = null;
     let currentDetailMap = {};
 
@@ -851,6 +795,113 @@ function renderGenderModelMatrix(matrixRows) {
         ? ""
         : "CFM is hidden because CFM data is not available yet. SMS drop is shown as 0.";
     }
+    const FLOW_STAGES = ["LR2", "FLC", "SMS", "CFM"];
+
+function buildDevelopmentCodeMatrix(rows) {
+  const codeMap = new Map();
+
+  rows.forEach(row => {
+    const code = String(row["Development code"] ?? "").trim();
+    if (!code) return;
+
+    if (!codeMap.has(code)) {
+      codeMap.set(code, {
+        developmentCode: code,
+        genderModel: String(row["Gender_Model"] ?? "").trim(),
+        LR2: false,
+        FLC: false,
+        SMS: false,
+        CFM: false
+      });
+    }
+
+    const item = codeMap.get(code);
+
+    if (!item.genderModel) {
+      item.genderModel = String(row["Gender_Model"] ?? "").trim();
+    }
+
+    if (hasStage(row, "LR2")) item.LR2 = true;
+    if (hasStage(row, "FLC")) item.FLC = true;
+    if (hasStage(row, "SMS")) item.SMS = true;
+    if (hasStage(row, "CFM")) item.CFM = true;
+  });
+
+  const result = Array.from(codeMap.values())
+    .map(item => {
+      const flags = FLOW_STAGES.map(stage => item[stage]);
+
+      const startIndex = flags.findIndex(v => v === true);
+      if (startIndex === -1) return null;
+
+      let endIndex = startIndex;
+      for (let i = startIndex + 1; i < FLOW_STAGES.length; i++) {
+        if (item[FLOW_STAGES[i]]) {
+          endIndex = i;
+        } else {
+          break;
+        }
+      }
+
+      const startStage = FLOW_STAGES[startIndex];
+      const path = FLOW_STAGES.slice(startIndex, endIndex + 1).join(" → ");
+
+      return {
+        ...item,
+        startIndex,
+        endIndex,
+        startStage,
+        path
+      };
+    })
+    .filter(Boolean);
+
+  result.sort((a, b) => {
+    if (a.startIndex !== b.startIndex) return a.startIndex - b.startIndex;
+    if (a.endIndex !== b.endIndex) return b.endIndex - a.endIndex;
+    return a.developmentCode.localeCompare(b.developmentCode);
+  });
+
+  return result;
+}
+
+function getStageFillClass(row, stageIndex) {
+  if (stageIndex < row.startIndex || stageIndex > row.endIndex) {
+    return "empty";
+  }
+
+  if (row.startStage === "LR2") return "fill-lr2";
+  if (row.startStage === "FLC") return "fill-flc";
+  if (row.startStage === "SMS") return "fill-sms";
+  if (row.startStage === "CFM") return "fill-cfm";
+
+  return "empty";
+}
+
+function renderDevelopmentCodeMatrix(matrixRows) {
+  const tbody = document.getElementById("devCodeMatrixBody");
+
+  if (!matrixRows.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;color:#6b7280;">No development code data found.</td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = matrixRows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.developmentCode)}</td>
+      <td>${escapeHtml(row.genderModel)}</td>
+      <td class="matrix-stage-cell ${getStageFillClass(row, 0)}"></td>
+      <td class="matrix-stage-cell ${getStageFillClass(row, 1)}"></td>
+      <td class="matrix-stage-cell ${getStageFillClass(row, 2)}"></td>
+      <td class="matrix-stage-cell ${getStageFillClass(row, 3)}"></td>
+      <td><span class="path-text">${escapeHtml(row.path)}</span></td>
+    </tr>
+  `).join("");
+}
 
     document.getElementById("generateBtn").addEventListener("click", () => {
       const file = document.getElementById("excelFile").files[0];
@@ -871,6 +922,7 @@ function renderGenderModelMatrix(matrixRows) {
           alert(`Cannot find sheet: ${sheetName}`);
           return;
         }
+        
 
         const worksheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
@@ -883,13 +935,13 @@ function renderGenderModelMatrix(matrixRows) {
        const summary = stageSummary(rows);
         const stageStatus = buildStageStatus(rows);
         const pathGroups = buildPathGroups(rows);
-        const genderModelMatrix = buildGenderModelMatrix(rows);
-        
+        const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
+
         renderSummaryCards(summary);
         renderTransitionStats(stageStatus);
         renderChart(stageStatus);
         renderPathOverview(pathGroups);
-        renderGenderModelMatrix(genderModelMatrix);
+        renderDevelopmentCodeMatrix(devCodeMatrix);
         renderHints(stageStatus);
         
         currentDetailMap = buildDetailMap(stageStatus);
