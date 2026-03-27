@@ -297,9 +297,45 @@
       <div id="cfmHint" class="hint"></div>
     </div>
 
-    <div class="panel">
-      <h2>Development Code Stage Matrix</h2>
-      <div class="table-wrap">
+   <div class="panel">
+  <h2>Development Code Stage Matrix</h2>
+
+  <div class="filters">
+    <div class="field">
+      <label>Stage</label>
+      <select id="matrixStageFilter">
+        <option value="ALL">All</option>
+        <option value="LR2">LR2</option>
+        <option value="FLC">FLC</option>
+        <option value="SMS">SMS</option>
+        <option value="CFM">CFM</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Path</label>
+      <select id="matrixPathFilter">
+        <option value="ALL">All</option>
+        <option value="LR2">LR2</option>
+        <option value="LR2 → FLC">LR2 → FLC</option>
+        <option value="LR2 → FLC → SMS">LR2 → FLC → SMS</option>
+        <option value="LR2 → FLC → SMS → CFM">LR2 → FLC → SMS → CFM</option>
+        <option value="FLC">FLC</option>
+        <option value="FLC → SMS">FLC → SMS</option>
+        <option value="FLC → SMS → CFM">FLC → SMS → CFM</option>
+        <option value="SMS">SMS</option>
+        <option value="SMS → CFM">SMS → CFM</option>
+        <option value="CFM">CFM</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Search code/model</label>
+      <input type="text" id="matrixSearchFilter" placeholder="Type to search..." />
+    </div>
+  </div>
+
+  <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -365,6 +401,7 @@
   <script>
     let transitionChart = null;
     let currentDetailMap = {};
+    let currentMatrixRows = [];
 
     const STAGES = ["LR2", "FLC", "SMS", "CFM"];
     const FLOW_STAGES = ["LR2", "FLC", "SMS", "CFM"];
@@ -624,7 +661,31 @@
 
       return "empty";
     }
+    function renderFilteredDevelopmentCodeMatrix() {
+    const stage = document.getElementById("matrixStageFilter").value;
+    const path = document.getElementById("matrixPathFilter").value;
+    const search = document.getElementById("matrixSearchFilter").value.trim().toLowerCase();
+  
+    let rows = [...currentMatrixRows];
+  
+    if (stage !== "ALL") {
+      rows = rows.filter(row => row[stage] === true);
+    }
+  
+    if (path !== "ALL") {
+      rows = rows.filter(row => row.path === path);
+    }
+  
+    if (search) {
+      rows = rows.filter(row => {
+      const code = String(row.developmentCode || "").toLowerCase();
+      const model = String(row.genderModel || "").toLowerCase();
+      return code.includes(search) || model.includes(search);
+    });
+  }
 
+  renderDevelopmentCodeMatrix(rows);
+}
     function renderDevelopmentCodeMatrix(matrixRows) {
       const tbody = document.getElementById("devCodeMatrixBody");
 
@@ -748,9 +809,11 @@
         renderSummaryCards(summary);
         renderTransitionStats(stageStatus);
         renderChart(stageStatus);
-        renderDevelopmentCodeMatrix(devCodeMatrix);
         renderHints(stageStatus);
-
+        
+        currentMatrixRows = devCodeMatrix;
+        renderFilteredDevelopmentCodeMatrix();
+        
         currentDetailMap = buildDetailMap(stageStatus);
         renderDetailTable();
       };
@@ -780,6 +843,9 @@
     document.getElementById("stageFilter").addEventListener("change", renderDetailTable);
     document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
     document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
+    document.getElementById("matrixStageFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixPathFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixSearchFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
   </script>
 </body>
 </html>
