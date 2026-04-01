@@ -115,7 +115,7 @@
 
     .transition-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 16px;
       margin-top: 16px;
     }
@@ -192,9 +192,9 @@
       color: white;
     }
 
-    .active { background: #79C9C5; }
+    .active { background: #79C9C5; color: #0f172a; }
     .drop { background: #F96E5B; }
-    .new { background: #FFE2AF; }
+    .new { background: #FFE2AF; color: #0f172a; }
 
     .hint {
       color: #6b7280;
@@ -248,7 +248,6 @@
 
     @media (max-width: 900px) {
       .cards,
-      .transition-grid,
       .sub-grid {
         grid-template-columns: 1fr;
       }
@@ -297,45 +296,45 @@
       <div id="cfmHint" class="hint"></div>
     </div>
 
-   <div class="panel">
-  <h2>Development Code Stage Matrix</h2>
+    <div class="panel">
+      <h2>Development Code Stage Matrix</h2>
 
-  <div class="filters">
-    <div class="field">
-      <label>Stage</label>
-      <select id="matrixStageFilter">
-        <option value="ALL">All</option>
-        <option value="LR2">LR2</option>
-        <option value="FLC">FLC</option>
-        <option value="SMS">SMS</option>
-        <option value="CFM">CFM</option>
-      </select>
-    </div>
+      <div class="filters">
+        <div class="field">
+          <label>Stage</label>
+          <select id="matrixStageFilter">
+            <option value="ALL">All</option>
+            <option value="LR2">LR2</option>
+            <option value="FLC">FLC</option>
+            <option value="SMS">SMS</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
 
-    <div class="field">
-      <label>Path</label>
-      <select id="matrixPathFilter">
-        <option value="ALL">All</option>
-        <option value="LR2">LR2</option>
-        <option value="LR2 → FLC">LR2 → FLC</option>
-        <option value="LR2 → FLC → SMS">LR2 → FLC → SMS</option>
-        <option value="LR2 → FLC → SMS → CFM">LR2 → FLC → SMS → CFM</option>
-        <option value="FLC">FLC</option>
-        <option value="FLC → SMS">FLC → SMS</option>
-        <option value="FLC → SMS → CFM">FLC → SMS → CFM</option>
-        <option value="SMS">SMS</option>
-        <option value="SMS → CFM">SMS → CFM</option>
-        <option value="CFM">CFM</option>
-      </select>
-    </div>
+        <div class="field">
+          <label>Path</label>
+          <select id="matrixPathFilter">
+            <option value="ALL">All</option>
+            <option value="LR2">LR2</option>
+            <option value="LR2 → FLC">LR2 → FLC</option>
+            <option value="LR2 → FLC → SMS">LR2 → FLC → SMS</option>
+            <option value="LR2 → FLC → SMS → CFM">LR2 → FLC → SMS → CFM</option>
+            <option value="FLC">FLC</option>
+            <option value="FLC → SMS">FLC → SMS</option>
+            <option value="FLC → SMS → CFM">FLC → SMS → CFM</option>
+            <option value="SMS">SMS</option>
+            <option value="SMS → CFM">SMS → CFM</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
 
-    <div class="field">
-      <label>Search code/model</label>
-      <input type="text" id="matrixSearchFilter" placeholder="Type to search..." />
-    </div>
-  </div>
+        <div class="field">
+          <label>Search code/model</label>
+          <input type="text" id="matrixSearchFilter" placeholder="Type to search..." />
+        </div>
+      </div>
 
-  <div class="table-wrap">
+      <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -362,6 +361,7 @@
             <option value="LR2">LR2</option>
             <option value="FLC">FLC</option>
             <option value="SMS">SMS</option>
+            <option value="CFM">CFM</option>
           </select>
         </div>
 
@@ -429,16 +429,19 @@
       rows.forEach(row => {
         const code = String(row["Development code"] ?? "").trim();
         if (!code) return;
-        if (hasStage(row, stage)) map.set(code, row);
+        if (hasStage(row, stage)) {
+          map.set(code, row);
+        }
       });
 
       return map;
     }
 
-    function analyzeTransition(rows, fromStage, toStage) {
-      const fromMap = buildStageMap(rows, fromStage);
-      const toMap = buildStageMap(rows, toStage);
+    function getPopulatedStages(rows) {
+      return STAGES.filter(stage => rows.some(row => hasStage(row, stage)));
+    }
 
+    function getTransition(fromMap, toMap) {
       const fromCodes = new Set(fromMap.keys());
       const toCodes = new Set(toMap.keys());
 
@@ -463,37 +466,73 @@
       return { active, drop, new: newlyAdded };
     }
 
-    function hasAnyDataInStage(rows, stage) {
-      return rows.some(row => hasStage(row, stage));
-    }
-
     function buildStageStatus(rows) {
-      const lr2ToFlc = analyzeTransition(rows, "LR2", "FLC");
-      const flcToSms = analyzeTransition(rows, "FLC", "SMS");
-      const smsToCfm = analyzeTransition(rows, "SMS", "CFM");
-      const cfmHasData = hasAnyDataInStage(rows, "CFM");
-      const lr2Map = buildStageMap(rows, "LR2");
+      const stageMaps = {};
+      STAGES.forEach(stage => {
+        stageMaps[stage] = buildStageMap(rows, stage);
+      });
 
-      return {
-        LR2: {
-          active: Array.from(lr2Map.values()),
+      const populatedStages = getPopulatedStages(rows);
+
+      const status = {};
+      STAGES.forEach(stage => {
+        status[stage] = {
+          active: [],
           new: [],
-          drop: lr2ToFlc.drop
-        },
-        FLC: {
-          active: lr2ToFlc.active,
-          new: lr2ToFlc.new,
-          drop: flcToSms.drop
-        },
-        SMS: {
-          active: flcToSms.active,
-          new: flcToSms.new,
-          drop: cfmHasData ? smsToCfm.drop : []
-        },
-        meta: {
-          cfmHasData
+          drop: []
+        };
+      });
+
+      if (!populatedStages.length) {
+        status.meta = {
+          populatedStages: [],
+          latestStage: null,
+          cfmHasData: false
+        };
+        return status;
+      }
+
+      for (let i = 0; i < populatedStages.length; i++) {
+        const stage = populatedStages[i];
+        const currentMap = stageMaps[stage];
+
+        if (i === 0) {
+          status[stage].active = Array.from(currentMap.values());
+          status[stage].new = [];
+          status[stage].drop = [];
+
+          if (i < populatedStages.length - 1) {
+            const nextStage = populatedStages[i + 1];
+            const transition = getTransition(currentMap, stageMaps[nextStage]);
+            status[stage].drop = transition.drop;
+          }
+          continue;
         }
+
+        const prevStage = populatedStages[i - 1];
+        const prevMap = stageMaps[prevStage];
+        const prevToCurrent = getTransition(prevMap, currentMap);
+
+        status[stage].active = prevToCurrent.active;
+        status[stage].new = prevToCurrent.new;
+
+        if (i < populatedStages.length - 1) {
+          const nextStage = populatedStages[i + 1];
+          const currentToNext = getTransition(currentMap, stageMaps[nextStage]);
+          status[stage].drop = currentToNext.drop;
+        } else {
+          status[stage].drop = [];
+          status[stage].active = Array.from(currentMap.values());
+        }
+      }
+
+      status.meta = {
+        populatedStages,
+        latestStage: populatedStages[populatedStages.length - 1],
+        cfmHasData: populatedStages.includes("CFM")
       };
+
+      return status;
     }
 
     function stageSummary(rows) {
@@ -516,7 +555,19 @@
 
     function renderTransitionStats(stageStatus) {
       const el = document.getElementById("transitionStats");
-      const stagesToShow = ["LR2", "FLC", "SMS"];
+      const stagesToShow = stageStatus.meta.populatedStages || [];
+
+      if (!stagesToShow.length) {
+        el.innerHTML = `
+          <div class="mini-card">
+            <h3>No data</h3>
+            <div class="metric"><span>Active</span><strong>0</strong></div>
+            <div class="metric"><span>New</span><strong>0</strong></div>
+            <div class="metric"><span>Drop</span><strong>0</strong></div>
+          </div>
+        `;
+        return;
+      }
 
       el.innerHTML = stagesToShow.map(stage => `
         <div class="mini-card">
@@ -529,7 +580,7 @@
     }
 
     function renderChart(stageStatus) {
-      const labels = ["LR2", "FLC", "SMS"];
+      const labels = stageStatus.meta.populatedStages || [];
       const activeData = labels.map(stage => stageStatus[stage].active.length);
       const newData = labels.map(stage => stageStatus[stage].new.length);
       const dropData = labels.map(stage => stageStatus[stage].drop.length);
@@ -661,31 +712,7 @@
 
       return "empty";
     }
-    function renderFilteredDevelopmentCodeMatrix() {
-    const stage = document.getElementById("matrixStageFilter").value;
-    const path = document.getElementById("matrixPathFilter").value;
-    const search = document.getElementById("matrixSearchFilter").value.trim().toLowerCase();
-  
-    let rows = [...currentMatrixRows];
-  
-    if (stage !== "ALL") {
-      rows = rows.filter(row => row[stage] === true);
-    }
-  
-    if (path !== "ALL") {
-      rows = rows.filter(row => row.path === path);
-    }
-  
-    if (search) {
-      rows = rows.filter(row => {
-      const code = String(row.developmentCode || "").toLowerCase();
-      const model = String(row.genderModel || "").toLowerCase();
-      return code.includes(search) || model.includes(search);
-    });
-  }
 
-  renderDevelopmentCodeMatrix(rows);
-}
     function renderDevelopmentCodeMatrix(matrixRows) {
       const tbody = document.getElementById("devCodeMatrixBody");
 
@@ -711,24 +738,44 @@
       `).join("");
     }
 
+    function renderFilteredDevelopmentCodeMatrix() {
+      const stage = document.getElementById("matrixStageFilter").value;
+      const path = document.getElementById("matrixPathFilter").value;
+      const search = document.getElementById("matrixSearchFilter").value.trim().toLowerCase();
+
+      let rows = [...currentMatrixRows];
+
+      if (stage !== "ALL") {
+        rows = rows.filter(row => row[stage] === true);
+      }
+
+      if (path !== "ALL") {
+        rows = rows.filter(row => row.path === path);
+      }
+
+      if (search) {
+        rows = rows.filter(row => {
+          const code = String(row.developmentCode || "").toLowerCase();
+          const model = String(row.genderModel || "").toLowerCase();
+          return code.includes(search) || model.includes(search);
+        });
+      }
+
+      renderDevelopmentCodeMatrix(rows);
+    }
+
     function buildDetailMap(stageStatus) {
-      return {
-        LR2: {
-          Active: stageStatus.LR2.active,
-          New: stageStatus.LR2.new,
-          Drop: stageStatus.LR2.drop
-        },
-        FLC: {
-          Active: stageStatus.FLC.active,
-          New: stageStatus.FLC.new,
-          Drop: stageStatus.FLC.drop
-        },
-        SMS: {
-          Active: stageStatus.SMS.active,
-          New: stageStatus.SMS.new,
-          Drop: stageStatus.SMS.drop
-        }
-      };
+      const result = {};
+
+      STAGES.forEach(stage => {
+        result[stage] = {
+          Active: stageStatus[stage]?.active || [],
+          New: stageStatus[stage]?.new || [],
+          Drop: stageStatus[stage]?.drop || []
+        };
+      });
+
+      return result;
     }
 
     function renderDetailTable() {
@@ -747,6 +794,16 @@
       }
 
       const tbody = document.getElementById("detailTableBody");
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
+          </tr>
+        `;
+        return;
+      }
+
       tbody.innerHTML = rows.map((row, index) => `
         <tr>
           <td>${index + 1}</td>
@@ -757,21 +814,35 @@
           <td>${escapeHtml(row["Material Indicator"])}</td>
         </tr>
       `).join("");
-
-      if (!rows.length) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
-          </tr>
-        `;
-      }
     }
 
     function renderHints(stageStatus) {
       const hint = document.getElementById("cfmHint");
-      hint.textContent = stageStatus.meta.cfmHasData
-        ? ""
-        : "CFM is hidden because CFM data is not available yet. SMS drop is shown as 0.";
+      const latestStage = stageStatus.meta.latestStage;
+
+      if (!latestStage) {
+        hint.textContent = "No stage data found in the selected sheet.";
+        return;
+      }
+
+      hint.textContent = `Latest populated stage: ${latestStage}. Drop is only calculated for stages that already have a later populated stage.`;
+    }
+
+    function generateDashboardFromRows(rows) {
+      const summary = stageSummary(rows);
+      const stageStatus = buildStageStatus(rows);
+      const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
+
+      renderSummaryCards(summary);
+      renderTransitionStats(stageStatus);
+      renderChart(stageStatus);
+      renderHints(stageStatus);
+
+      currentMatrixRows = devCodeMatrix;
+      renderFilteredDevelopmentCodeMatrix();
+
+      currentDetailMap = buildDetailMap(stageStatus);
+      renderDetailTable();
     }
 
     document.getElementById("generateBtn").addEventListener("click", () => {
@@ -802,20 +873,7 @@
           return;
         }
 
-        const summary = stageSummary(rows);
-        const stageStatus = buildStageStatus(rows);
-        const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
-
-        renderSummaryCards(summary);
-        renderTransitionStats(stageStatus);
-        renderChart(stageStatus);
-        renderHints(stageStatus);
-        
-        currentMatrixRows = devCodeMatrix;
-        renderFilteredDevelopmentCodeMatrix();
-        
-        currentDetailMap = buildDetailMap(stageStatus);
-        renderDetailTable();
+        generateDashboardFromRows(rows);
       };
 
       reader.readAsArrayBuffer(file);
@@ -843,6 +901,7 @@
     document.getElementById("stageFilter").addEventListener("change", renderDetailTable);
     document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
     document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
+
     document.getElementById("matrixStageFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
     document.getElementById("matrixPathFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
     document.getElementById("matrixSearchFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
