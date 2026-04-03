@@ -1,472 +1,910 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PDF to PPT với headline tự động</title>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-
+  <title>Colorway Stage Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
     body {
       margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f3f4f6;
-      color: #111827;
-    }
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
       padding: 24px;
+      background: #eef2f7;
+      color: #1f2937;
     }
-    .card {
-      background: #fff;
-      border-radius: 18px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-      padding: 22px;
-      margin-bottom: 22px;
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
     }
+
     h1 {
-      margin: 0 0 10px;
-      font-size: 30px;
+      margin: 0 0 8px;
+      color: #123d8a;
     }
-    .sub {
-      margin: 0;
-      color: #4b5563;
-      line-height: 1.55;
-      font-size: 15px;
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: #6b7280;
     }
-    .row {
+
+    .panel {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+
+    .top-row {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field label {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    select,
+    button {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 14px;
+    }
+
+    button {
+      background: #123d8a;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      opacity: 0.95;
+    }
+
+    .cards {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
     }
-    label {
-      display: block;
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .card-title {
+      color: #6b7280;
       font-size: 14px;
-      font-weight: 700;
       margin-bottom: 8px;
     }
-    input[type="file"], input[type="text"], select {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1px solid #d1d5db;
-      border-radius: 14px;
-      background: #fff;
+
+    .card-value {
+      font-size: 30px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .sub-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+    }
+
+    .transition-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .mini-card {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .mini-card h3 {
+      margin: 0 0 12px;
+      color: #123d8a;
+      font-size: 16px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px dashed #e5e7eb;
       font-size: 14px;
     }
-    .btns {
+
+    .filters {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
-      margin-top: 18px;
+      margin-bottom: 14px;
     }
-    button {
-      border: 0;
-      border-radius: 14px;
-      padding: 12px 18px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .primary {
-      background: #0f172a;
-      color: white;
-    }
-    .secondary {
-      background: #e5e7eb;
-      color: #111827;
-    }
-    button:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
-    }
-    .status {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: 14px;
-      background: #f3f4f6;
-      white-space: pre-line;
-      line-height: 1.55;
-      min-height: 64px;
-      font-size: 14px;
-    }
-    .preview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
-    }
-    .preview-item {
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      overflow: hidden;
-      background: white;
-    }
-    .preview-title {
-      padding: 10px 12px;
-      font-size: 14px;
-      font-weight: 700;
-      background: #f9fafb;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .preview-body { padding: 12px; }
-    .thumb {
+
+    table {
       width: 100%;
-      display: block;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
+      border-collapse: collapse;
       background: #fff;
     }
-    .meta {
-      margin-top: 10px;
-      font-size: 13px;
-      line-height: 1.5;
-      color: #374151;
-      word-break: break-word;
+
+    th {
+      background: #123d8a;
+      color: white;
+      text-align: left;
+      padding: 12px;
+      font-size: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
-    .small {
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
       font-size: 12px;
-      color: #6b7280;
+      font-weight: 700;
+      color: white;
     }
-    .footer-note {
+
+    .active { background: #79C9C5; color: #0f172a; }
+    .drop { background: #F96E5B; }
+    .new { background: #FFE2AF; color: #0f172a; }
+
+    .hint {
       color: #6b7280;
       font-size: 13px;
-      line-height: 1.6;
+      margin-top: 10px;
     }
-    @media (max-width: 800px) {
-      .row { grid-template-columns: 1fr; }
-      h1 { font-size: 24px; }
+
+    .path-text {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .matrix-stage-cell {
+      text-align: center;
+      font-weight: 700;
+      height: 42px;
+      border-left: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      padding: 0;
+    }
+
+    .matrix-stage-cell.empty {
+      background: #f8fafc;
+    }
+
+    .matrix-stage-cell.fill-lr2 {
+      background: #91C6BC;
+    }
+
+    .matrix-stage-cell.fill-flc {
+      background: #4B9DA9;
+    }
+
+    .matrix-stage-cell.fill-sms {
+      background: #E37434;
+    }
+
+    .matrix-stage-cell.fill-cfm {
+      background: #FCBF49;
+    }
+
+    .matrix-code {
+      font-weight: 700;
+      color: #111827;
+    }
+
+    canvas {
+      width: 100% !important;
+      max-height: 420px !important;
+    }
+
+    @media (max-width: 900px) {
+      .cards,
+      .sub-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>PDF → PPT với headline tự động</h1>
-      <p class="sub">Upload nhiều file PDF, hệ thống sẽ tạo PowerPoint với 1 slide = 1 trang PDF và thêm title lớn phía trên, lấy từ vùng header giữa của trang.</p>
-    </div>
+  <div class="container">
+    <h1>Colorway Stage Dashboard</h1>
+    <p class="subtitle">Upload Excel file to analyze LR2, FLC, SMS, CFM</p>
 
-    <div class="card">
-      <div class="row">
-        <div>
-          <label for="pdfFiles">Chọn file PDF</label>
-          <input id="pdfFiles" type="file" accept="application/pdf" multiple />
+    <div class="panel">
+      <div class="top-row">
+        <div class="field">
+          <label>Choose Excel file</label>
+          <input type="file" id="excelFile" accept=".xlsx,.xls" />
         </div>
-        <div>
-          <label for="pptName">Tên file PowerPoint</label>
-          <input id="pptName" type="text" value="Footwear_Output" />
-        </div>
-      </div>
 
-      <div class="row" style="margin-top: 14px;">
-        <div>
-          <label for="ocrLang">Ngôn ngữ OCR</label>
-          <select id="ocrLang">
-            <option value="eng" selected>English</option>
+        <div class="field">
+          <label>Sheet name</label>
+          <select id="sheetName">
+            <option value="Sheet1">Sheet1</option>
           </select>
         </div>
+
+        <button id="generateBtn">Generate Dashboard</button>
+      </div>
+      <div class="hint">
+        Expected columns: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Stage Summary</h2>
+      <div id="summaryCards" class="cards"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Transition Overview</h2>
+      <div class="sub-grid">
         <div>
-          <label for="pdfScale">Độ nét khi đọc PDF</label>
-          <select id="pdfScale">
-            <option value="1.5">1.5x</option>
-            <option value="2" selected>2x</option>
-            <option value="2.5">2.5x</option>
+          <canvas id="transitionChart"></canvas>
+        </div>
+        <div id="transitionStats" class="transition-grid"></div>
+      </div>
+      <div id="cfmHint" class="hint"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Development Code Stage Matrix</h2>
+
+      <div class="filters">
+        <div class="field">
+          <label>Stage</label>
+          <select id="matrixStageFilter">
+            <option value="ALL">All</option>
+            <option value="LR2">LR2</option>
+            <option value="FLC">FLC</option>
+            <option value="SMS">SMS</option>
+            <option value="CFM">CFM</option>
           </select>
+        </div>
+
+        <div class="field">
+          <label>Path</label>
+          <select id="matrixPathFilter">
+            <option value="ALL">All</option>
+            <option value="LR2">LR2</option>
+            <option value="LR2 → FLC">LR2 → FLC</option>
+            <option value="LR2 → FLC → SMS">LR2 → FLC → SMS</option>
+            <option value="LR2 → FLC → SMS → CFM">LR2 → FLC → SMS → CFM</option>
+            <option value="FLC">FLC</option>
+            <option value="FLC → SMS">FLC → SMS</option>
+            <option value="FLC → SMS → CFM">FLC → SMS → CFM</option>
+            <option value="SMS">SMS</option>
+            <option value="SMS → CFM">SMS → CFM</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Search code/model</label>
+          <input type="text" id="matrixSearchFilter" placeholder="Type to search..." />
         </div>
       </div>
 
-      <div class="btns">
-        <button id="previewBtn" class="secondary">Preview title</button>
-        <button id="generateBtn" class="primary">Tạo PowerPoint</button>
-        <button id="clearBtn" class="secondary">Xóa</button>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:170px;">Development code</th>
+              <th style="min-width:260px;">Gender_Model</th>
+              <th style="width:90px; text-align:center;">LR2</th>
+              <th style="width:90px; text-align:center;">FLC</th>
+              <th style="width:90px; text-align:center;">SMS</th>
+              <th style="width:90px; text-align:center;">CFM</th>
+              <th style="min-width:220px;">Path</th>
+            </tr>
+          </thead>
+          <tbody id="devCodeMatrixBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Detail List</h2>
+      <div class="filters">
+        <div class="field">
+          <label>Stage</label>
+          <select id="stageFilter">
+            <option value="LR2">LR2</option>
+            <option value="FLC">FLC</option>
+            <option value="SMS">SMS</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Type</label>
+          <select id="typeFilter">
+            <option value="Active">Active</option>
+            <option value="New">New</option>
+            <option value="Drop">Drop</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Search code/model</label>
+          <input type="text" id="searchFilter" placeholder="Type to search..." />
+        </div>
       </div>
 
-      <div id="status" class="status">Sẵn sàng.</div>
-    </div>
-
-    <div class="card">
-      <h2 style="margin-top: 0;">Preview</h2>
-      <div id="previewGrid" class="preview-grid"></div>
-    </div>
-
-    <div class="footer-note">
-      Mẹo: app này hợp nhất với file concept có layout giống nhau. Nếu OCR đọc chưa chuẩn, hãy tăng “Độ nét khi đọc PDF” lên 2.5x.
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:70px;">No.</th>
+              <th style="width:110px;">Type</th>
+              <th>Development code</th>
+              <th>Gender_Model</th>
+              <th style="width:90px;">Factory</th>
+              <th style="width:140px;">Material Indicator</th>
+            </tr>
+          </thead>
+          <tbody id="detailTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    let transitionChart = null;
+    let currentDetailMap = {};
+    let currentMatrixRows = [];
 
-    const pdfFilesInput = document.getElementById('pdfFiles');
-    const pptNameInput = document.getElementById('pptName');
-    const ocrLangInput = document.getElementById('ocrLang');
-    const pdfScaleInput = document.getElementById('pdfScale');
-    const previewBtn = document.getElementById('previewBtn');
-    const generateBtn = document.getElementById('generateBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const statusBox = document.getElementById('status');
-    const previewGrid = document.getElementById('previewGrid');
+    const STAGES = ["LR2", "FLC", "SMS", "CFM"];
+    const FLOW_STAGES = ["LR2", "FLC", "SMS", "CFM"];
 
-    let cachedPages = [];
-
-    function setStatus(text) {
-      statusBox.textContent = text;
+    function normalizeValue(v) {
+      return v !== undefined && v !== null && String(v).trim() !== "";
     }
 
-    function clearPreview() {
-      previewGrid.innerHTML = '';
-      cachedPages = [];
-      setStatus('Đã xóa dữ liệu cũ.');
+    function hasStage(row, stage) {
+      return normalizeValue(row[stage]);
     }
 
-    function sanitizeTitle(text) {
-      return (text || '')
-        .replace(/[\n\r]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/\bFLC\b.*$/i, '')
-        .replace(/\bFW\d{2}\b.*$/i, '')
-        .replace(/[_|]/g, ' ')
-        .replace(/\s+-\s*$/, '')
-        .trim()
-        .toUpperCase();
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
-    function getCropBox(canvas) {
-      const w = canvas.width;
-      const h = canvas.height;
-      return {
-        x: Math.floor(w * 0.33),
-        y: Math.floor(h * 0.02),
-        width: Math.floor(w * 0.41),
-        height: Math.floor(h * 0.08)
-      };
-    }
+    function buildStageMap(rows, stage) {
+      const map = new Map();
 
-    async function renderPdfPageToCanvas(page, scaleValue) {
-      const viewport = page.getViewport({ scale: scaleValue });
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      await page.render({ canvasContext: context, viewport }).promise;
-      return canvas;
-    }
-
-    async function ocrHeadlineFromCanvas(canvas, lang) {
-      const crop = getCropBox(canvas);
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = crop.width;
-      tempCanvas.height = crop.height;
-
-      tempCtx.fillStyle = 'white';
-      tempCtx.fillRect(0, 0, crop.width, crop.height);
-      tempCtx.drawImage(
-        canvas,
-        crop.x, crop.y, crop.width, crop.height,
-        0, 0, crop.width, crop.height
-      );
-
-      const result = await Tesseract.recognize(tempCanvas.toDataURL('image/png'), lang, {
-        logger: () => {}
+      rows.forEach(row => {
+        const code = String(row["Development code"] ?? "").trim();
+        if (!code) return;
+        if (hasStage(row, stage)) {
+          map.set(code, row);
+        }
       });
 
-      return {
-        title: sanitizeTitle(result?.data?.text || ''),
-        cropCanvas: tempCanvas
-      };
+      return map;
     }
 
-    function addPreviewCard(item, index) {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'preview-item';
-
-      const title = document.createElement('div');
-      title.className = 'preview-title';
-      title.textContent = `Slide ${index + 1}: ${item.title || '(không đọc được title)'}`;
-
-      const body = document.createElement('div');
-      body.className = 'preview-body';
-
-      const thumb = document.createElement('img');
-      thumb.className = 'thumb';
-      thumb.src = item.cropDataUrl;
-
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.innerHTML = `File: <b>${item.fileName}</b><br>Page: <b>${item.pageNumber}</b><br><span class="small">OCR vùng header giữa</span>`;
-
-      body.appendChild(thumb);
-      body.appendChild(meta);
-      wrapper.appendChild(title);
-      wrapper.appendChild(body);
-      previewGrid.appendChild(wrapper);
+    function getPopulatedStages(rows) {
+      return STAGES.filter(stage => rows.some(row => hasStage(row, stage)));
     }
 
-    async function buildCache(previewOnly = false) {
-      const files = Array.from(pdfFilesInput.files || []);
-      if (!files.length) {
-        setStatus('Bạn chưa chọn file PDF.');
-        return false;
-      }
+    function getTransition(fromMap, toMap) {
+      const fromCodes = new Set(fromMap.keys());
+      const toCodes = new Set(toMap.keys());
 
-      previewGrid.innerHTML = '';
-      cachedPages = [];
-      const scaleValue = Number(pdfScaleInput.value || 2);
-      const lang = ocrLangInput.value || 'eng';
-      let totalPages = 0;
+      const active = [];
+      const drop = [];
+      const newlyAdded = [];
 
-      setStatus('Đang đếm số trang...');
-            const fileBuffers = [];
-      for (const file of files) {
-        const rawBuffer = await file.arrayBuffer();
-        const bytes = new Uint8Array(rawBuffer.slice(0));
-        fileBuffers.push({ file, bytes });
-        const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-        totalPages += pdf.numPages;
-      }
-
-      let done = 0;
-
-      for (const itemFile of fileBuffers) {
-        const { file, bytes } = itemFile;
-        const pdf = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-
-        for (let p = 1; p <= pdf.numPages; p++) {
-          setStatus(`Đang xử lý: ${file.name}\nTrang ${p}/${pdf.numPages} | Tổng ${done + 1}/${totalPages}`);
-          const page = await pdf.getPage(p);
-          const canvas = await renderPdfPageToCanvas(page, scaleValue);
-          const { title, cropCanvas } = await ocrHeadlineFromCanvas(canvas, lang);
-
-          const pageDataUrl = canvas.toDataURL('image/png');
-          const cropDataUrl = cropCanvas.toDataURL('image/png');
-
-          const pageItem = {
-            fileName: file.name,
-            pageNumber: p,
-            title: title || `SLIDE ${done + 1}`,
-            pageDataUrl,
-            cropDataUrl,
-            pageWidth: canvas.width,
-            pageHeight: canvas.height
-          };
-
-          cachedPages.push(pageItem);
-          addPreviewCard(pageItem, done);
-          done += 1;
-        }
-      }
-
-      setStatus(previewOnly
-        ? `Đã preview xong ${cachedPages.length} slide.`
-        : `Đã xử lý xong ${cachedPages.length} slide.`);
-
-      return true;
-    }
-
-    async function generatePpt() {
-      if (!cachedPages.length) {
-        const ok = await buildCache(false);
-        if (!ok) return;
-      }
-
-      setStatus('Đang tạo PowerPoint...');
-      const pptx = new PptxGenJS();
-      pptx.layout = 'LAYOUT_WIDE';
-      pptx.author = 'ChatGPT';
-      pptx.subject = 'PDF to PPT';
-      pptx.title = pptNameInput.value.trim() || 'Footwear_Output';
-
-      for (const item of cachedPages) {
-        const slide = pptx.addSlide();
-        slide.background = { color: 'F3F4F6' };
-
-        slide.addText(item.title, {
-          x: 0.3,
-          y: 0.08,
-          w: 12.7,
-          h: 0.42,
-          fontFace: 'Arial',
-          fontSize: 20,
-          bold: true,
-          align: 'center',
-          margin: 0,
-          color: '111111'
-        });
-
-        const boxX = 0.2;
-        const boxY = 0.78;
-        const boxW = 12.93;
-        const boxH = 6.45;
-        const imgW = item.pageWidth || 1;
-        const imgH = item.pageHeight || 1;
-        const imgRatio = imgW / imgH;
-        const boxRatio = boxW / boxH;
-
-        let drawW, drawH, drawX, drawY;
-
-        if (imgRatio > boxRatio) {
-          drawW = boxW;
-          drawH = boxW / imgRatio;
-          drawX = boxX;
-          drawY = boxY + (boxH - drawH) / 2;
+      fromCodes.forEach(code => {
+        if (toCodes.has(code)) {
+          active.push(toMap.get(code) || fromMap.get(code));
         } else {
-          drawH = boxH;
-          drawW = boxH * imgRatio;
-          drawX = boxX + (boxW - drawW) / 2;
-          drawY = boxY;
+          drop.push(fromMap.get(code));
+        }
+      });
+
+      toCodes.forEach(code => {
+        if (!fromCodes.has(code)) {
+          newlyAdded.push(toMap.get(code));
+        }
+      });
+
+      return { active, drop, new: newlyAdded };
+    }
+
+    function buildStageStatus(rows) {
+      const stageMaps = {};
+      STAGES.forEach(stage => {
+        stageMaps[stage] = buildStageMap(rows, stage);
+      });
+
+      const populatedStages = getPopulatedStages(rows);
+
+      const status = {};
+      STAGES.forEach(stage => {
+        status[stage] = {
+          active: [],
+          new: [],
+          drop: []
+        };
+      });
+
+      if (!populatedStages.length) {
+        status.meta = {
+          populatedStages: [],
+          latestStage: null,
+          cfmHasData: false
+        };
+        return status;
+      }
+
+      for (let i = 0; i < populatedStages.length; i++) {
+        const stage = populatedStages[i];
+        const currentMap = stageMaps[stage];
+
+        if (i === 0) {
+          status[stage].active = Array.from(currentMap.values());
+          status[stage].new = [];
+          status[stage].drop = [];
+
+          if (i < populatedStages.length - 1) {
+            const nextStage = populatedStages[i + 1];
+            const transition = getTransition(currentMap, stageMaps[nextStage]);
+            status[stage].drop = transition.drop;
+          }
+          continue;
         }
 
-        slide.addImage({
-          data: item.pageDataUrl,
-          x: drawX,
-          y: drawY,
-          w: drawW,
-          h: drawH
+        const prevStage = populatedStages[i - 1];
+        const prevMap = stageMaps[prevStage];
+        const prevToCurrent = getTransition(prevMap, currentMap);
+
+        status[stage].active = prevToCurrent.active;
+        status[stage].new = prevToCurrent.new;
+
+        if (i < populatedStages.length - 1) {
+          const nextStage = populatedStages[i + 1];
+          const currentToNext = getTransition(currentMap, stageMaps[nextStage]);
+          status[stage].drop = currentToNext.drop;
+        } else {
+          status[stage].drop = [];
+          status[stage].active = Array.from(currentMap.values());
+        }
+      }
+
+      status.meta = {
+        populatedStages,
+        latestStage: populatedStages[populatedStages.length - 1],
+        cfmHasData: populatedStages.includes("CFM")
+      };
+
+      return status;
+    }
+
+    function stageSummary(rows) {
+      const result = {};
+      STAGES.forEach(stage => {
+        result[stage] = buildStageMap(rows, stage).size;
+      });
+      return result;
+    }
+
+    function renderSummaryCards(summary) {
+      const el = document.getElementById("summaryCards");
+      el.innerHTML = STAGES.map(stage => `
+        <div class="card">
+          <div class="card-title">${stage}</div>
+          <div class="card-value">${summary[stage]}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderTransitionStats(stageStatus) {
+      const el = document.getElementById("transitionStats");
+      const stagesToShow = stageStatus.meta.populatedStages || [];
+
+      if (!stagesToShow.length) {
+        el.innerHTML = `
+          <div class="mini-card">
+            <h3>No data</h3>
+            <div class="metric"><span>Active</span><strong>0</strong></div>
+            <div class="metric"><span>New</span><strong>0</strong></div>
+            <div class="metric"><span>Drop</span><strong>0</strong></div>
+          </div>
+        `;
+        return;
+      }
+
+      el.innerHTML = stagesToShow.map(stage => `
+        <div class="mini-card">
+          <h3>${stage}</h3>
+          <div class="metric"><span>Active</span><strong>${stageStatus[stage].active.length}</strong></div>
+          <div class="metric"><span>New</span><strong>${stageStatus[stage].new.length}</strong></div>
+          <div class="metric"><span>Drop</span><strong>${stageStatus[stage].drop.length}</strong></div>
+        </div>
+      `).join("");
+    }
+
+    function renderChart(stageStatus) {
+      const labels = stageStatus.meta.populatedStages || [];
+      const activeData = labels.map(stage => stageStatus[stage].active.length);
+      const newData = labels.map(stage => stageStatus[stage].new.length);
+      const dropData = labels.map(stage => stageStatus[stage].drop.length);
+
+      const ctx = document.getElementById("transitionChart").getContext("2d");
+
+      if (transitionChart) {
+        transitionChart.destroy();
+      }
+
+      transitionChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Active",
+              data: activeData,
+              backgroundColor: "#3F9AAE"
+            },
+            {
+              label: "New",
+              data: newData,
+              backgroundColor: "#FFE2AF"
+            },
+            {
+              label: "Drop",
+              data: dropData,
+              backgroundColor: "#F96E5B"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "top" },
+            title: {
+              display: true,
+              text: "Stage Status Counts"
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+
+    function buildDevelopmentCodeMatrix(rows) {
+      const codeMap = new Map();
+
+      rows.forEach(row => {
+        const code = String(row["Development code"] ?? "").trim();
+        if (!code) return;
+
+        if (!codeMap.has(code)) {
+          codeMap.set(code, {
+            developmentCode: code,
+            genderModel: String(row["Gender_Model"] ?? "").trim(),
+            LR2: false,
+            FLC: false,
+            SMS: false,
+            CFM: false
+          });
+        }
+
+        const item = codeMap.get(code);
+
+        if (!item.genderModel) {
+          item.genderModel = String(row["Gender_Model"] ?? "").trim();
+        }
+
+        if (hasStage(row, "LR2")) item.LR2 = true;
+        if (hasStage(row, "FLC")) item.FLC = true;
+        if (hasStage(row, "SMS")) item.SMS = true;
+        if (hasStage(row, "CFM")) item.CFM = true;
+      });
+
+      const result = Array.from(codeMap.values())
+        .map(item => {
+          const flags = FLOW_STAGES.map(stage => item[stage]);
+          const startIndex = flags.findIndex(v => v === true);
+          if (startIndex === -1) return null;
+
+          let endIndex = startIndex;
+          for (let i = startIndex + 1; i < FLOW_STAGES.length; i++) {
+            if (item[FLOW_STAGES[i]]) {
+              endIndex = i;
+            } else {
+              break;
+            }
+          }
+
+          const startStage = FLOW_STAGES[startIndex];
+          const path = FLOW_STAGES.slice(startIndex, endIndex + 1).join(" → ");
+
+          return {
+            ...item,
+            startIndex,
+            endIndex,
+            startStage,
+            path
+          };
+        })
+        .filter(Boolean);
+
+      result.sort((a, b) => {
+        if (a.startIndex !== b.startIndex) return a.startIndex - b.startIndex;
+        if (a.endIndex !== b.endIndex) return b.endIndex - a.endIndex;
+        return a.developmentCode.localeCompare(b.developmentCode);
+      });
+
+      return result;
+    }
+
+    function getStageFillClass(row, stageIndex) {
+      if (stageIndex < row.startIndex || stageIndex > row.endIndex) {
+        return "empty";
+      }
+
+      if (row.startStage === "LR2") return "fill-lr2";
+      if (row.startStage === "FLC") return "fill-flc";
+      if (row.startStage === "SMS") return "fill-sms";
+      if (row.startStage === "CFM") return "fill-cfm";
+
+      return "empty";
+    }
+
+    function renderDevelopmentCodeMatrix(matrixRows) {
+      const tbody = document.getElementById("devCodeMatrixBody");
+
+      if (!matrixRows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center;color:#6b7280;">No development code data found.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = matrixRows.map(row => `
+        <tr>
+          <td class="matrix-code">${escapeHtml(row.developmentCode)}</td>
+          <td>${escapeHtml(row.genderModel)}</td>
+          <td class="matrix-stage-cell ${getStageFillClass(row, 0)}"></td>
+          <td class="matrix-stage-cell ${getStageFillClass(row, 1)}"></td>
+          <td class="matrix-stage-cell ${getStageFillClass(row, 2)}"></td>
+          <td class="matrix-stage-cell ${getStageFillClass(row, 3)}"></td>
+          <td><span class="path-text">${escapeHtml(row.path)}</span></td>
+        </tr>
+      `).join("");
+    }
+
+    function renderFilteredDevelopmentCodeMatrix() {
+      const stage = document.getElementById("matrixStageFilter").value;
+      const path = document.getElementById("matrixPathFilter").value;
+      const search = document.getElementById("matrixSearchFilter").value.trim().toLowerCase();
+
+      let rows = [...currentMatrixRows];
+
+      if (stage !== "ALL") {
+        rows = rows.filter(row => row[stage] === true);
+      }
+
+      if (path !== "ALL") {
+        rows = rows.filter(row => row.path === path);
+      }
+
+      if (search) {
+        rows = rows.filter(row => {
+          const code = String(row.developmentCode || "").toLowerCase();
+          const model = String(row.genderModel || "").toLowerCase();
+          return code.includes(search) || model.includes(search);
         });
       }
 
-      const fileName = (pptNameInput.value.trim() || 'Footwear_Output') + '.pptx';
-      await pptx.writeFile({ fileName });
-      setStatus(`Đã tạo xong file ${fileName}`);
+      renderDevelopmentCodeMatrix(rows);
     }
 
-    previewBtn.addEventListener('click', async () => {
-      previewBtn.disabled = true;
-      generateBtn.disabled = true;
-      try {
-        await buildCache(true);
-      } catch (err) {
-        console.error(err);
-        setStatus('Có lỗi khi preview: ' + (err?.message || err));
-      } finally {
-        previewBtn.disabled = false;
-        generateBtn.disabled = false;
+    function buildDetailMap(stageStatus) {
+      const result = {};
+
+      STAGES.forEach(stage => {
+        result[stage] = {
+          Active: stageStatus[stage]?.active || [],
+          New: stageStatus[stage]?.new || [],
+          Drop: stageStatus[stage]?.drop || []
+        };
+      });
+
+      return result;
+    }
+
+    function renderDetailTable() {
+      const stage = document.getElementById("stageFilter").value;
+      const type = document.getElementById("typeFilter").value;
+      const search = document.getElementById("searchFilter").value.trim().toLowerCase();
+
+      let rows = currentDetailMap[stage]?.[type] || [];
+
+      if (search) {
+        rows = rows.filter(row => {
+          const code = String(row["Development code"] || "").toLowerCase();
+          const model = String(row["Gender_Model"] || "").toLowerCase();
+          return code.includes(search) || model.includes(search);
+        });
       }
+
+      const tbody = document.getElementById("detailTableBody");
+
+      if (!rows.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" style="text-align:center;color:#6b7280;">No data found.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = rows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><span class="tag ${type.toLowerCase()}">${type}</span></td>
+          <td>${escapeHtml(row["Development code"])}</td>
+          <td>${escapeHtml(row["Gender_Model"])}</td>
+          <td>${escapeHtml(row["Factory"])}</td>
+          <td>${escapeHtml(row["Material Indicator"])}</td>
+        </tr>
+      `).join("");
+    }
+
+    function renderHints(stageStatus) {
+      const hint = document.getElementById("cfmHint");
+      const latestStage = stageStatus.meta.latestStage;
+
+      if (!latestStage) {
+        hint.textContent = "No stage data found in the selected sheet.";
+        return;
+      }
+
+      hint.textContent = `Latest populated stage: ${latestStage}. Drop is only calculated for stages that already have a later populated stage.`;
+    }
+
+    function generateDashboardFromRows(rows) {
+      const summary = stageSummary(rows);
+      const stageStatus = buildStageStatus(rows);
+      const devCodeMatrix = buildDevelopmentCodeMatrix(rows);
+
+      renderSummaryCards(summary);
+      renderTransitionStats(stageStatus);
+      renderChart(stageStatus);
+      renderHints(stageStatus);
+
+      currentMatrixRows = devCodeMatrix;
+      renderFilteredDevelopmentCodeMatrix();
+
+      currentDetailMap = buildDetailMap(stageStatus);
+      renderDetailTable();
+    }
+
+    document.getElementById("generateBtn").addEventListener("click", () => {
+      const file = document.getElementById("excelFile").files[0];
+      const sheetName = document.getElementById("sheetName").value;
+
+      if (!file) {
+        alert("Please choose Excel file first.");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        if (!workbook.SheetNames.includes(sheetName)) {
+          alert(`Cannot find sheet: ${sheetName}`);
+          return;
+        }
+
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+        if (!rows.length) {
+          alert("Sheet is empty.");
+          return;
+        }
+
+        generateDashboardFromRows(rows);
+      };
+
+      reader.readAsArrayBuffer(file);
     });
 
-    generateBtn.addEventListener('click', async () => {
-      previewBtn.disabled = true;
-      generateBtn.disabled = true;
-      try {
-        await generatePpt();
-      } catch (err) {
-        console.error(err);
-        setStatus('Có lỗi khi tạo PowerPoint: ' + (err?.message || err));
-      } finally {
-        previewBtn.disabled = false;
-        generateBtn.disabled = false;
-      }
+    document.getElementById("excelFile").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetDropdown = document.getElementById("sheetName");
+
+        sheetDropdown.innerHTML = workbook.SheetNames.map(name =>
+          `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`
+        ).join("");
+      };
+
+      reader.readAsArrayBuffer(file);
     });
 
-    clearBtn.addEventListener('click', () => {
-      pdfFilesInput.value = '';
-      pptNameInput.value = 'Footwear_Output';
-      clearPreview();
-    });
+    document.getElementById("stageFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("typeFilter").addEventListener("change", renderDetailTable);
+    document.getElementById("searchFilter").addEventListener("input", renderDetailTable);
+
+    document.getElementById("matrixStageFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixPathFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixSearchFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
   </script>
 </body>
 </html>
