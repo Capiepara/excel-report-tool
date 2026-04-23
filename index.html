@@ -297,42 +297,80 @@
     </div>
 
     <div class="panel">
+      <div class="panel">
+  <h2>Stage Origin Breakdown</h2>
+
+  <div class="filters">
+    <div class="field">
+      <label>Stage</label>
+      <select id="originStageFilter">
+        <option value="LR2">LR2</option>
+        <option value="FLC">FLC</option>
+        <option value="SMS" selected>SMS</option>
+        <option value="CFM">CFM</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="sub-grid">
+    <div>
+      <canvas id="originPieChart"></canvas>
+    </div>
+    <div id="originBreakdownStats" class="transition-grid"></div>
+  </div>
+
+  <div class="hint" id="originHint">
+    This chart shows where the styles in the selected stage started from.
+  </div>
+</div>
+      <div class="panel">
+  <h2>Stage Origin Breakdown</h2>
+
+  <div class="filters">
+    <div class="field">
+      <label>Stage</label>
+      <select id="originStageFilter">
+        <option value="LR2">LR2</option>
+        <option value="FLC">FLC</option>
+        <option value="SMS" selected>SMS</option>
+        <option value="CFM">CFM</option>
+      </select>
+    </div>
+  </div>
+
+  <canvas id="originPieChart"></canvas>
+</div>
       <h2>Development Code Stage Matrix</h2>
 
       <div class="filters">
-        <div class="field">
-          <label>Stage</label>
-          <select id="matrixStageFilter">
-            <option value="ALL">All</option>
-            <option value="LR2">LR2</option>
-            <option value="FLC">FLC</option>
-            <option value="SMS">SMS</option>
-            <option value="CFM">CFM</option>
-          </select>
-        </div>
+  <div class="field">
+    <label>Stage</label>
+    <select id="matrixStageFilter">
+      <option value="ALL">All</option>
+      <option value="LR2">LR2</option>
+      <option value="FLC">FLC</option>
+      <option value="SMS">SMS</option>
+      <option value="CFM">CFM</option>
+    </select>
+  </div>
 
-        <div class="field">
-          <label>Path</label>
-          <select id="matrixPathFilter">
-            <option value="ALL">All</option>
-            <option value="LR2">LR2</option>
-            <option value="LR2 → FLC">LR2 → FLC</option>
-            <option value="LR2 → FLC → SMS">LR2 → FLC → SMS</option>
-            <option value="LR2 → FLC → SMS → CFM">LR2 → FLC → SMS → CFM</option>
-            <option value="FLC">FLC</option>
-            <option value="FLC → SMS">FLC → SMS</option>
-            <option value="FLC → SMS → CFM">FLC → SMS → CFM</option>
-            <option value="SMS">SMS</option>
-            <option value="SMS → CFM">SMS → CFM</option>
-            <option value="CFM">CFM</option>
-          </select>
-        </div>
+  <div class="field">
+    <label>Development code</label>
+    <input type="text" id="matrixCodeFilter" placeholder="Type development code..." />
+  </div>
 
-        <div class="field">
-          <label>Search code/model</label>
-          <input type="text" id="matrixSearchFilter" placeholder="Type to search..." />
-        </div>
-      </div>
+  <div class="field">
+    <label>Gender_Model</label>
+    <input type="text" id="matrixGenderFilter" placeholder="Type gender/model..." />
+  </div>
+
+  <div class="field">
+    <label>Path</label>
+    <select id="matrixPathFilter">
+      <option value="ALL">All</option>
+    </select>
+  </div>
+</div>
 
       <div class="table-wrap">
         <table>
@@ -375,8 +413,15 @@
         </div>
 
         <div class="field">
-          <label>Search code/model</label>
-          <input type="text" id="searchFilter" placeholder="Type to search..." />
+        <div class="field">
+  <label>Development code</label>
+  <input type="text" id="matrixCodeFilter" placeholder="Type code..." />
+</div>
+
+<div class="field">
+  <label>Gender_Model</label>
+  <input type="text" id="matrixGenderFilter" placeholder="Type model..." />
+</div>
         </div>
       </div>
 
@@ -400,6 +445,7 @@
 
   <script>
     let transitionChart = null;
+    let originPieChart = null;
     let currentDetailMap = {};
     let currentMatrixRows = [];
 
@@ -632,7 +678,47 @@
         }
       });
     }
+    function renderOriginPieChart() {
+  const stage = document.getElementById("originStageFilter").value;
 
+  const counts = {
+    LR2: 0,
+    FLC: 0,
+    SMS: 0,
+    CFM: 0
+  };
+
+  currentMatrixRows.forEach(row => {
+    if (row[stage]) {
+      counts[row.startStage]++;
+    }
+  });
+
+  const labels = [];
+  const data = [];
+
+  Object.keys(counts).forEach(k => {
+    if (counts[k] > 0) {
+      labels.push("From " + k);
+      data.push(counts[k]);
+    }
+  });
+
+  const ctx = document.getElementById("originPieChart").getContext("2d");
+
+  if (originPieChart) originPieChart.destroy();
+
+  originPieChart = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: ["#91C6BC", "#4B9DA9", "#E37434", "#FCBF49"]
+      }]
+    }
+  });
+}
     function buildDevelopmentCodeMatrix(rows) {
       const codeMap = new Map();
 
@@ -741,7 +827,8 @@
     function renderFilteredDevelopmentCodeMatrix() {
       const stage = document.getElementById("matrixStageFilter").value;
       const path = document.getElementById("matrixPathFilter").value;
-      const search = document.getElementById("matrixSearchFilter").value.trim().toLowerCase();
+      const code = document.getElementById("matrixCodeFilter").value.toLowerCase();
+      const gender = document.getElementById("matrixGenderFilter").value.toLowerCase();
 
       let rows = [...currentMatrixRows];
 
@@ -753,13 +840,13 @@
         rows = rows.filter(row => row.path === path);
       }
 
-      if (search) {
-        rows = rows.filter(row => {
-          const code = String(row.developmentCode || "").toLowerCase();
-          const model = String(row.genderModel || "").toLowerCase();
-          return code.includes(search) || model.includes(search);
-        });
-      }
+      if (code) {
+  rows = rows.filter(r => r.developmentCode.toLowerCase().includes(code));
+}
+
+if (gender) {
+  rows = rows.filter(r => r.genderModel.toLowerCase().includes(gender));
+}
 
       renderDevelopmentCodeMatrix(rows);
     }
@@ -840,6 +927,7 @@
 
       currentMatrixRows = devCodeMatrix;
       renderFilteredDevelopmentCodeMatrix();
+      renderOriginPieChart();
 
       currentDetailMap = buildDetailMap(stageStatus);
       renderDetailTable();
@@ -905,6 +993,7 @@
     document.getElementById("matrixStageFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
     document.getElementById("matrixPathFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
     document.getElementById("matrixSearchFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("originStageFilter").addEventListener("change", renderOriginPieChart);
   </script>
 </body>
 </html>
