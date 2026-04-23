@@ -911,11 +911,11 @@
         if (idx < selectedIndex) {
           outerData.push({
             value: summary[stage],
-            name: "",
+            name: stage,
+            isPlaceholder: true,
             itemStyle: { color: "rgba(0,0,0,0)" },
             label: { show: false },
-            labelLine: { show: false },
-            tooltip: { show: false }
+            labelLine: { show: false }
           });
           return;
         }
@@ -953,16 +953,14 @@
           });
           return;
         }
-
         outerData.push({
           value: summary[stage],
-          name: "",
+          name: stage,
+          isPlaceholder: true,
           itemStyle: { color: "rgba(0,0,0,0)" },
           label: { show: false },
-          labelLine: { show: false },
-          tooltip: { show: false }
+          labelLine: { show: false }
         });
-      });
 
       originPieChart.setOption({
         backgroundColor: "#efefef",
@@ -971,6 +969,11 @@
           trigger: "item",
           formatter: function (p) {
             if (!p.name) return "";
+        
+            if (p.data && p.data.isPlaceholder) {
+              return `<b>${p.name}</b><br/>Total: ${p.value}`;
+            }
+        
             return `<b>${p.name}</b><br/>${p.value}`;
           }
         },
