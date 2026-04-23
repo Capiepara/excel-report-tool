@@ -6,6 +6,7 @@
   <title>Colorway Stage Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -266,10 +267,21 @@
       max-height: 420px !important;
     }
 
+    #originPieChart {
+      width: 100%;
+      height: 560px;
+      background: #efefef;
+      border-radius: 10px;
+    }
+
     @media (max-width: 900px) {
       .cards,
       .sub-grid {
         grid-template-columns: 1fr;
+      }
+
+      #originPieChart {
+        height: 460px;
       }
     }
   </style>
@@ -332,15 +344,10 @@
         </div>
       </div>
 
-      <div class="sub-grid">
-        <div>
-          <canvas id="originPieChart"></canvas>
-        </div>
-        <div id="originBreakdownStats" class="transition-grid"></div>
-      </div>
+      <div id="originPieChart"></div>
 
       <div class="hint" id="originHint">
-        This chart shows where the styles in the selected stage started from.
+        This chart shows stage share and origin breakdown of the selected stage.
       </div>
     </div>
 
@@ -851,89 +858,197 @@
         .filter(item => item.value > 0);
     }
 
-    function renderOriginBreakdownStats(data, selectedStage) {
-      const el = document.getElementById("originBreakdownStats");
-
-      if (!data.length) {
-        el.innerHTML = `
-          <div class="origin-card">
-            <h3>No data</h3>
-            <div class="metric"><span>Total</span><strong>0</strong></div>
-          </div>
-        `;
-        return;
-      }
-
-      const total = data.reduce((sum, item) => sum + item.value, 0);
-      const colorMap = {
-        LR2: "#91C6BC",
-        FLC: "#4B9DA9",
-        SMS: "#E37434",
-        CFM: "#FCBF49"
-      };
-
-      el.innerHTML = `
-        <div class="origin-card">
-          <h3>${selectedStage} origin</h3>
-          <div class="metric"><span>Total styles</span><strong>${total}</strong></div>
-          ${data.map(item => `
-            <div class="metric">
-              <span>
-                <span class="origin-dot" style="background:${colorMap[item.stage]}"></span>
-                From ${item.stage}
-              </span>
-              <strong>${item.value}</strong>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }
-
     function renderOriginPieChart() {
       const selectedStage = document.getElementById("originStageFilter").value;
       const breakdown = getStageOriginBreakdown(currentMatrixRows, selectedStage);
 
-      renderOriginBreakdownStats(breakdown, selectedStage);
-
       const hint = document.getElementById("originHint");
-      const total = breakdown.reduce((sum, item) => sum + item.value, 0);
-      hint.textContent = `${selectedStage} has ${total} style(s). This chart shows how many styles started from earlier stages.`;
+      const totalSelected = breakdown.reduce((sum, item) => sum + item.value, 0);
 
-      const ctx = document.getElementById("originPieChart").getContext("2d");
+      const summary = {
+        LR2: currentMatrixRows.filter(r => r.LR2).length,
+        FLC: currentMatrixRows.filter(r => r.FLC).length,
+        SMS: currentMatrixRows.filter(r => r.SMS).length,
+        CFM: currentMatrixRows.filter(r => r.CFM).length
+      };
+
+      hint.textContent = `${selectedStage} has ${totalSelected} style(s). The outer ring shows where this stage comes from.`;
+
+      const el = document.getElementById("originPieChart");
 
       if (originPieChart) {
-        originPieChart.destroy();
+        originPieChart.dispose();
       }
 
-      originPieChart = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: breakdown.map(item => `From ${item.stage}`),
-          datasets: [{
-            data: breakdown.map(item => item.value),
-            backgroundColor: breakdown.map(item => {
-              if (item.stage === "LR2") return "#91C6BC";
-              if (item.stage === "FLC") return "#4B9DA9";
-              if (item.stage === "SMS") return "#E37434";
-              return "#FCBF49";
-            }),
-            borderWidth: 2,
-            borderColor: "#ffffff"
-          }]
+      originPieChart = echarts.init(el);
+
+      const stageColors = {
+        LR2: "#7B4C97",
+        FLC: "#2F7591",
+        SMS: "#9A79AD",
+        CFM: "#B59CBD"
+      };
+
+      const originColors = {
+        LR2: "#4676C7",
+        FLC: "#EE8A2E",
+        SMS: "#A9A9A9",
+        CFM: "#EDC02F"
+      };
+
+      const stageOrder = ["LR2", "FLC", "SMS", "CFM"];
+      const selectedIndex = stageOrder.indexOf(selectedStage);
+
+      const innerData = stageOrder.map(stage => ({
+        name: stage,
+        value: summary[stage],
+        itemStyle: { color: stageColors[stage] }
+      }));
+
+      const outerData = [];
+
+      stageOrder.forEach((stage, idx) => {
+        if (idx < selectedIndex) {
+          outerData.push({
+            value: summary[stage],
+            name: "",
+            itemStyle: { color: "rgba(0,0,0,0)" },
+            label: { show: false },
+            labelLine: { show: false },
+            tooltip: { show: false }
+          });
+          return;
+        }
+
+        if (stage === selectedStage) {
+          breakdown.forEach(item => {
+            const labelText = item.stage === selectedStage
+              ? `New ${selectedStage}`
+              : `From ${item.stage}`;
+
+            outerData.push({
+              value: item.value,
+              name: labelText,
+              itemStyle: {
+                color: originColors[item.stage],
+                borderColor: "#efefef",
+                borderWidth: 2
+              },
+              label: {
+                show: true,
+                color: originColors[item.stage],
+                fontSize: 14,
+                formatter: "{b}"
+              },
+              labelLine: {
+                show: true,
+                length: 18,
+                length2: 34,
+                lineStyle: {
+                  color: originColors[item.stage],
+                  width: 2
+                }
+              }
+            });
+          });
+          return;
+        }
+
+        outerData.push({
+          value: summary[stage],
+          name: "",
+          itemStyle: { color: "rgba(0,0,0,0)" },
+          label: { show: false },
+          labelLine: { show: false },
+          tooltip: { show: false }
+        });
+      });
+
+      originPieChart.setOption({
+        backgroundColor: "#efefef",
+        animation: false,
+        tooltip: {
+          trigger: "item",
+          formatter: function (p) {
+            if (!p.name) return "";
+            return `<b>${p.name}</b><br/>${p.value}`;
+          }
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: "top"
-            },
-            title: {
-              display: true,
-              text: `${selectedStage} Style Origin Breakdown`
+        legend: {
+          orient: "vertical",
+          left: "2%",
+          top: 30,
+          itemWidth: 16,
+          itemHeight: 16,
+          icon: "roundRect",
+          textStyle: {
+            fontSize: 14,
+            color: "#333"
+          },
+          data: stageOrder
+        },
+        graphic: [
+          {
+            type: "text",
+            left: "60%",
+            top: "45%",
+            style: {
+              text: `Share And Breakdown Of\n${selectedStage}`,
+              fill: "#d91d1d",
+              font: "bold 24px Georgia, serif",
+              lineHeight: 34
+            }
+          },
+          {
+            type: "text",
+            left: "60%",
+            top: "59%",
+            style: {
+              text: `Example: Total ${selectedStage} = ${totalSelected}`,
+              fill: "#777",
+              font: "italic 15px Georgia, serif"
             }
           }
-        }
+        ],
+        series: [
+          {
+            name: "Stage Share",
+            type: "pie",
+            radius: ["18%", "34%"],
+            center: ["32%", "55%"],
+            startAngle: 90,
+            clockwise: true,
+            itemStyle: {
+              borderColor: "#efefef",
+              borderWidth: 2
+            },
+            label: {
+              show: true,
+              position: "inside",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: "bold",
+              formatter: "{d}%"
+            },
+            labelLine: { show: false },
+            data: innerData
+          },
+          {
+            name: "Origin Breakdown",
+            type: "pie",
+            radius: ["39%", "62%"],
+            center: ["32%", "55%"],
+            startAngle: 90,
+            clockwise: true,
+            avoidLabelOverlap: false,
+            minShowLabelAngle: 2,
+            itemStyle: {
+              borderColor: "#efefef",
+              borderWidth: 2
+            },
+            data: outerData
+          }
+        ]
       });
     }
 
@@ -1083,6 +1198,12 @@
     document.getElementById("matrixGenderFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
 
     document.getElementById("originStageFilter").addEventListener("change", renderOriginPieChart);
+
+    window.addEventListener("resize", () => {
+      if (originPieChart) {
+        originPieChart.resize();
+      }
+    });
   </script>
 </body>
 </html>
