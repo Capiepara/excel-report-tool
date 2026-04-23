@@ -29,6 +29,11 @@
       color: #123d8a;
     }
 
+    h2 {
+      margin-top: 0;
+      color: #1f2937;
+    }
+
     .subtitle {
       margin: 0 0 20px;
       color: #6b7280;
@@ -39,7 +44,7 @@
       border-radius: 14px;
       padding: 20px;
       margin-bottom: 20px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
     }
 
     .top-row {
@@ -53,6 +58,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 140px;
     }
 
     .field label {
@@ -68,6 +74,7 @@
       border-radius: 8px;
       border: 1px solid #cbd5e1;
       font-size: 14px;
+      background: #fff;
     }
 
     button {
@@ -111,6 +118,7 @@
       display: grid;
       grid-template-columns: 1.2fr 1fr;
       gap: 20px;
+      align-items: start;
     }
 
     .transition-grid {
@@ -120,14 +128,16 @@
       margin-top: 16px;
     }
 
-    .mini-card {
+    .mini-card,
+    .origin-card {
       background: #f8fafc;
       border: 1px solid #e5e7eb;
       border-radius: 12px;
       padding: 16px;
     }
 
-    .mini-card h3 {
+    .mini-card h3,
+    .origin-card h3 {
       margin: 0 0 12px;
       color: #123d8a;
       font-size: 16px;
@@ -136,6 +146,7 @@
     .metric {
       display: flex;
       justify-content: space-between;
+      gap: 10px;
       padding: 6px 0;
       border-bottom: 1px dashed #e5e7eb;
       font-size: 14px;
@@ -241,6 +252,15 @@
       color: #111827;
     }
 
+    .origin-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
     canvas {
       width: 100% !important;
       max-height: 420px !important;
@@ -275,6 +295,7 @@
 
         <button id="generateBtn">Generate Dashboard</button>
       </div>
+
       <div class="hint">
         Expected columns: Factory, Material Indicator, Development code, Gender_Model, LR2, FLC, SMS, CFM
       </div>
@@ -297,80 +318,64 @@
     </div>
 
     <div class="panel">
-      <div class="panel">
-  <h2>Stage Origin Breakdown</h2>
+      <h2>Stage Origin Breakdown</h2>
 
-  <div class="filters">
-    <div class="field">
-      <label>Stage</label>
-      <select id="originStageFilter">
-        <option value="LR2">LR2</option>
-        <option value="FLC">FLC</option>
-        <option value="SMS" selected>SMS</option>
-        <option value="CFM">CFM</option>
-      </select>
+      <div class="filters">
+        <div class="field">
+          <label>Stage</label>
+          <select id="originStageFilter">
+            <option value="LR2">LR2</option>
+            <option value="FLC">FLC</option>
+            <option value="SMS" selected>SMS</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sub-grid">
+        <div>
+          <canvas id="originPieChart"></canvas>
+        </div>
+        <div id="originBreakdownStats" class="transition-grid"></div>
+      </div>
+
+      <div class="hint" id="originHint">
+        This chart shows where the styles in the selected stage started from.
+      </div>
     </div>
-  </div>
 
-  <div class="sub-grid">
-    <div>
-      <canvas id="originPieChart"></canvas>
-    </div>
-    <div id="originBreakdownStats" class="transition-grid"></div>
-  </div>
-
-  <div class="hint" id="originHint">
-    This chart shows where the styles in the selected stage started from.
-  </div>
-</div>
-      <div class="panel">
-  <h2>Stage Origin Breakdown</h2>
-
-  <div class="filters">
-    <div class="field">
-      <label>Stage</label>
-      <select id="originStageFilter">
-        <option value="LR2">LR2</option>
-        <option value="FLC">FLC</option>
-        <option value="SMS" selected>SMS</option>
-        <option value="CFM">CFM</option>
-      </select>
-    </div>
-  </div>
-
-  <canvas id="originPieChart"></canvas>
-</div>
+    <div class="panel">
       <h2>Development Code Stage Matrix</h2>
 
       <div class="filters">
-  <div class="field">
-    <label>Stage</label>
-    <select id="matrixStageFilter">
-      <option value="ALL">All</option>
-      <option value="LR2">LR2</option>
-      <option value="FLC">FLC</option>
-      <option value="SMS">SMS</option>
-      <option value="CFM">CFM</option>
-    </select>
-  </div>
+        <div class="field">
+          <label>Stage</label>
+          <select id="matrixStageFilter">
+            <option value="ALL">All</option>
+            <option value="LR2">LR2</option>
+            <option value="FLC">FLC</option>
+            <option value="SMS">SMS</option>
+            <option value="CFM">CFM</option>
+          </select>
+        </div>
 
-  <div class="field">
-    <label>Development code</label>
-    <input type="text" id="matrixCodeFilter" placeholder="Type development code..." />
-  </div>
+        <div class="field">
+          <label>Development code</label>
+          <input type="text" id="matrixCodeFilter" placeholder="Type development code..." />
+        </div>
 
-  <div class="field">
-    <label>Gender_Model</label>
-    <input type="text" id="matrixGenderFilter" placeholder="Type gender/model..." />
-  </div>
+        <div class="field">
+          <label>Gender_Model</label>
+          <input type="text" id="matrixGenderFilter" placeholder="Type gender/model..." />
+        </div>
 
-  <div class="field">
-    <label>Path</label>
-    <select id="matrixPathFilter">
-      <option value="ALL">All</option>
-    </select>
-  </div>
-</div>
+        <div class="field">
+          <label>Path</label>
+          <select id="matrixPathFilter">
+            <option value="ALL">All</option>
+          </select>
+        </div>
+      </div>
 
       <div class="table-wrap">
         <table>
@@ -392,6 +397,7 @@
 
     <div class="panel">
       <h2>Detail List</h2>
+
       <div class="filters">
         <div class="field">
           <label>Stage</label>
@@ -413,15 +419,8 @@
         </div>
 
         <div class="field">
-        <div class="field">
-  <label>Development code</label>
-  <input type="text" id="matrixCodeFilter" placeholder="Type code..." />
-</div>
-
-<div class="field">
-  <label>Gender_Model</label>
-  <input type="text" id="matrixGenderFilter" placeholder="Type model..." />
-</div>
+          <label>Search code/model</label>
+          <input type="text" id="searchFilter" placeholder="Type to search..." />
         </div>
       </div>
 
@@ -532,8 +531,7 @@
       if (!populatedStages.length) {
         status.meta = {
           populatedStages: [],
-          latestStage: null,
-          cfmHasData: false
+          latestStage: null
         };
         return status;
       }
@@ -545,12 +543,12 @@
         if (i === 0) {
           status[stage].active = Array.from(currentMap.values());
           status[stage].new = [];
-          status[stage].drop = [];
 
           if (i < populatedStages.length - 1) {
             const nextStage = populatedStages[i + 1];
-            const transition = getTransition(currentMap, stageMaps[nextStage]);
-            status[stage].drop = transition.drop;
+            status[stage].drop = getTransition(currentMap, stageMaps[nextStage]).drop;
+          } else {
+            status[stage].drop = [];
           }
           continue;
         }
@@ -564,8 +562,7 @@
 
         if (i < populatedStages.length - 1) {
           const nextStage = populatedStages[i + 1];
-          const currentToNext = getTransition(currentMap, stageMaps[nextStage]);
-          status[stage].drop = currentToNext.drop;
+          status[stage].drop = getTransition(currentMap, stageMaps[nextStage]).drop;
         } else {
           status[stage].drop = [];
           status[stage].active = Array.from(currentMap.values());
@@ -574,8 +571,7 @@
 
       status.meta = {
         populatedStages,
-        latestStage: populatedStages[populatedStages.length - 1],
-        cfmHasData: populatedStages.includes("CFM")
+        latestStage: populatedStages[populatedStages.length - 1]
       };
 
       return status;
@@ -678,47 +674,7 @@
         }
       });
     }
-    function renderOriginPieChart() {
-  const stage = document.getElementById("originStageFilter").value;
 
-  const counts = {
-    LR2: 0,
-    FLC: 0,
-    SMS: 0,
-    CFM: 0
-  };
-
-  currentMatrixRows.forEach(row => {
-    if (row[stage]) {
-      counts[row.startStage]++;
-    }
-  });
-
-  const labels = [];
-  const data = [];
-
-  Object.keys(counts).forEach(k => {
-    if (counts[k] > 0) {
-      labels.push("From " + k);
-      data.push(counts[k]);
-    }
-  });
-
-  const ctx = document.getElementById("originPieChart").getContext("2d");
-
-  if (originPieChart) originPieChart.destroy();
-
-  originPieChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: ["#91C6BC", "#4B9DA9", "#E37434", "#FCBF49"]
-      }]
-    }
-  });
-}
     function buildDevelopmentCodeMatrix(rows) {
       const codeMap = new Map();
 
@@ -795,7 +751,6 @@
       if (row.startStage === "FLC") return "fill-flc";
       if (row.startStage === "SMS") return "fill-sms";
       if (row.startStage === "CFM") return "fill-cfm";
-
       return "empty";
     }
 
@@ -824,11 +779,26 @@
       `).join("");
     }
 
+    function getAvailablePaths(matrixRows) {
+      const uniquePaths = [...new Set(matrixRows.map(row => row.path).filter(Boolean))];
+      return uniquePaths.sort((a, b) => a.localeCompare(b));
+    }
+
+    function populateMatrixPathFilter(matrixRows) {
+      const el = document.getElementById("matrixPathFilter");
+      const paths = getAvailablePaths(matrixRows);
+
+      el.innerHTML = `
+        <option value="ALL">All</option>
+        ${paths.map(path => `<option value="${escapeHtml(path)}">${escapeHtml(path)}</option>`).join("")}
+      `;
+    }
+
     function renderFilteredDevelopmentCodeMatrix() {
       const stage = document.getElementById("matrixStageFilter").value;
       const path = document.getElementById("matrixPathFilter").value;
-      const code = document.getElementById("matrixCodeFilter").value.toLowerCase();
-      const gender = document.getElementById("matrixGenderFilter").value.toLowerCase();
+      const code = document.getElementById("matrixCodeFilter").value.trim().toLowerCase();
+      const gender = document.getElementById("matrixGenderFilter").value.trim().toLowerCase();
 
       let rows = [...currentMatrixRows];
 
@@ -841,14 +811,130 @@
       }
 
       if (code) {
-  rows = rows.filter(r => r.developmentCode.toLowerCase().includes(code));
-}
+        rows = rows.filter(row =>
+          String(row.developmentCode || "").toLowerCase().includes(code)
+        );
+      }
 
-if (gender) {
-  rows = rows.filter(r => r.genderModel.toLowerCase().includes(gender));
-}
+      if (gender) {
+        rows = rows.filter(row =>
+          String(row.genderModel || "").toLowerCase().includes(gender)
+        );
+      }
 
       renderDevelopmentCodeMatrix(rows);
+    }
+
+    function getStageOriginBreakdown(matrixRows, selectedStage) {
+      const stageIndex = FLOW_STAGES.indexOf(selectedStage);
+      if (stageIndex === -1) return [];
+
+      const counts = {
+        LR2: 0,
+        FLC: 0,
+        SMS: 0,
+        CFM: 0
+      };
+
+      matrixRows.forEach(row => {
+        if (row[selectedStage] === true) {
+          counts[row.startStage] = (counts[row.startStage] || 0) + 1;
+        }
+      });
+
+      return FLOW_STAGES
+        .filter(stage => FLOW_STAGES.indexOf(stage) <= stageIndex)
+        .map(stage => ({
+          stage,
+          value: counts[stage] || 0
+        }))
+        .filter(item => item.value > 0);
+    }
+
+    function renderOriginBreakdownStats(data, selectedStage) {
+      const el = document.getElementById("originBreakdownStats");
+
+      if (!data.length) {
+        el.innerHTML = `
+          <div class="origin-card">
+            <h3>No data</h3>
+            <div class="metric"><span>Total</span><strong>0</strong></div>
+          </div>
+        `;
+        return;
+      }
+
+      const total = data.reduce((sum, item) => sum + item.value, 0);
+      const colorMap = {
+        LR2: "#91C6BC",
+        FLC: "#4B9DA9",
+        SMS: "#E37434",
+        CFM: "#FCBF49"
+      };
+
+      el.innerHTML = `
+        <div class="origin-card">
+          <h3>${selectedStage} origin</h3>
+          <div class="metric"><span>Total styles</span><strong>${total}</strong></div>
+          ${data.map(item => `
+            <div class="metric">
+              <span>
+                <span class="origin-dot" style="background:${colorMap[item.stage]}"></span>
+                From ${item.stage}
+              </span>
+              <strong>${item.value}</strong>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderOriginPieChart() {
+      const selectedStage = document.getElementById("originStageFilter").value;
+      const breakdown = getStageOriginBreakdown(currentMatrixRows, selectedStage);
+
+      renderOriginBreakdownStats(breakdown, selectedStage);
+
+      const hint = document.getElementById("originHint");
+      const total = breakdown.reduce((sum, item) => sum + item.value, 0);
+      hint.textContent = `${selectedStage} has ${total} style(s). This chart shows how many styles started from earlier stages.`;
+
+      const ctx = document.getElementById("originPieChart").getContext("2d");
+
+      if (originPieChart) {
+        originPieChart.destroy();
+      }
+
+      originPieChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: breakdown.map(item => `From ${item.stage}`),
+          datasets: [{
+            data: breakdown.map(item => item.value),
+            backgroundColor: breakdown.map(item => {
+              if (item.stage === "LR2") return "#91C6BC";
+              if (item.stage === "FLC") return "#4B9DA9";
+              if (item.stage === "SMS") return "#E37434";
+              return "#FCBF49";
+            }),
+            borderWidth: 2,
+            borderColor: "#ffffff"
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: "top"
+            },
+            title: {
+              display: true,
+              text: `${selectedStage} Style Origin Breakdown`
+            }
+          }
+        }
+      });
     }
 
     function buildDetailMap(stageStatus) {
@@ -926,6 +1012,7 @@ if (gender) {
       renderHints(stageStatus);
 
       currentMatrixRows = devCodeMatrix;
+      populateMatrixPathFilter(devCodeMatrix);
       renderFilteredDevelopmentCodeMatrix();
       renderOriginPieChart();
 
@@ -992,7 +1079,9 @@ if (gender) {
 
     document.getElementById("matrixStageFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
     document.getElementById("matrixPathFilter").addEventListener("change", renderFilteredDevelopmentCodeMatrix);
-    document.getElementById("matrixSearchFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixCodeFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
+    document.getElementById("matrixGenderFilter").addEventListener("input", renderFilteredDevelopmentCodeMatrix);
+
     document.getElementById("originStageFilter").addEventListener("change", renderOriginPieChart);
   </script>
 </body>
